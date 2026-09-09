@@ -1,0 +1,15 @@
+{
+  "version": "2.0.0",
+  "index_sha256": "a40015dc63daa23c705b9acaa41e84050c51fb6321f307011fa969598dd0cce6",
+  "files": [
+    "index.html",
+    "style.css",
+    "favicon.svg",
+    "app.js",
+    "render.js",
+    "engine.js",
+    "worker.js",
+    "public/manifest.json",
+    "public/catalog.json.gz"
+  ]
+}

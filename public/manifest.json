@@ -1,0 +1,42 @@
+{
+  "version": "2.0.0",
+  "method": "web-hierarchical-support-v1",
+  "minimum_date": "2026-04-27",
+  "snapshot_date": "2026-04-27",
+  "built_at": "2026-09-09T13:22:45.198821+00:00",
+  "code_count": 13295,
+  "pair_count": 48637,
+  "source_hashes": {
+    "data/tnved.csv": "835f448c86ab127fcb9de5cdfcd34dafc161bfce8fed2402751fe94e1ba021f6",
+    "data/parts_guidance.json": "645461a303ea2703bac6488de509c311e9ef60618c3fd8edeeefb03428d2f714",
+    "data/official_reference/eec_chapter84.pdf": "7ab67f603272daa3e4637c0daa98cf274059d18396145454e2b93f8a25dd16d3",
+    "data/official_reference/manifest.json": "73df9aecb4297543f83d6347e0cd6e9fd32a4bc17b1d12b7ecb035ae12253840",
+    "work/tnved_fns_2026/unzipped/TNVED1.TXT": "8cd6e12f41b30c5a6699ae1bacb2155b0ec9d0278e48fb7c7d79ad1c09bce1ae",
+    "work/tnved_fns_2026/unzipped/TNVED2.TXT": "4d74865a8e85c0605b3faaa6b21cf2f7ee06fe137b52a984be939ba6e5163e0a",
+    "work/tnved_fns_2026/unzipped/TNVED3.TXT": "091778186e426c74f959695ab7652767a3617cf799c6c3c9582ee49a582976db",
+    "work/tnved_fns_2026/unzipped/TNVED4.Txt": "d37d1a37cd48cf12b399845d0d09043376dfc9b54f2ba0590125c62953aae4db",
+    "work/rows.json": "fbb753994a8e9fba95c586631649c7ba7ae15106c342baa7b409faa14962cdc1",
+    "work/pp2425/product_index.json": "78bf86fdc312b87795e3f4db8f15b8f34260a4fbda60f3fe4f815bcaf2d98ef6",
+    "work/pp2425/source_2425_2026-04-23.docx": "64e0655c2ce1ccc5bac858059e40b0272192ec1285f0c97905c2df68f8dea013",
+    "work/regulatory_sources/sanitary_list/source.pdf": "7ea5c14f053e3c33ac7ec5f4e62a1cde4be3b03866617b0251458b9441d25eaa",
+    "work/pp2425/table_notes.json": "3c7cd7a17a61c17b166726257537e58561c09ee2b0416b6d1c96624d37c474f5",
+    "work/pp2425/provisions_and_notes.txt": "b958ac1cf30defb917edc757d213f58564cfeb01935a6df48a2827b91c974c59",
+    "work/regulatory_sources/sanitary_list/code_index.json": "e1ccb75d3edb40174826dd886cc42ff948ed15ab6e37bb15930d210ca5ef3116",
+    "work/regulatory_sources/sanitary_list/category_index.json": "bae654b175bcf7d25d56e905747a0eddc7437d0338dfd3bf1c90daebdd8b2295",
+    "work/regulatory_sources/technical_regulations/catalog.json": "c6a88985f6daa1c92f4be374609fa37249461f07fdfc26e41c565686593ff1ff"
+  },
+  "customer_sha256": "e360a1de286e95095b87b07d2ac112918f68ad97122cac5e580779ef6bdfb4d6",
+  "sources": [
+    "CARVER.xlsx",
+    "DONGCHENG.xlsx",
+    "ELITECH.xlsx",
+    "elitech 2.xlsx",
+    "Аксэл.xlsx",
+    "ГРИВОРКС.xlsx",
+    "Интерскол.xlsx",
+    "Ремни.xlsx"
+  ],
+  "notice": "CSV: classifikators.ru, полнота и дата редакции не подтверждены. ФНС: срез 27.04.2026.",
+  "index_sha256": "a40015dc63daa23c705b9acaa41e84050c51fb6321f307011fa969598dd0cce6",
+  "bytes": 3622662
+}
