@@ -1,5 +1,5 @@
-import {Engine} from './engine.js';
-import {semanticReport} from './semantic.js';
+import {Engine} from './engine.js?v=3.0.0';
+import {semanticReport} from './semantic.js?v=3.0.0';
 let engine,semanticPromise,queue=Promise.resolve();
 async function handle(message){
   try{
@@ -20,7 +20,7 @@ async function handle(message){
       if(/^\d[\d\s]*$/.test(profile.description))result=engine.classify(profile,5);
       else{
         const progress=text=>self.postMessage({id:message.id,progress:text});
-        if(!semanticPromise)semanticPromise=import('./semantic-runtime.js').then(m=>m.loadSemantic(engine.meta.index_sha256,engine.meta.semantic_sha256,progress)).catch(error=>{semanticPromise=null;throw error;});
+        if(!semanticPromise)semanticPromise=import('./semantic-runtime.js?v=3.0.0').then(m=>m.loadSemantic(engine.meta.index_sha256,engine.meta.semantic_sha256,progress)).catch(error=>{semanticPromise=null;throw error;});
         try{
           const semantic=await semanticPromise;progress('Сравниваем описание с категориями товаров…');
           const vector=await semantic.encode(profile);

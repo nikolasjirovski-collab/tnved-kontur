@@ -1,4 +1,4 @@
-import {toolContext,validOn} from './engine.js';
+import {toolContext,validOn} from './engine.js?v=3.0.0';
 export const SEMANTIC_VERSION='semantic-minilm-tools-v1';
 const round=(x,n=4)=>Number(x.toFixed(n));
 // Disambiguate a named part from a neighbouring part (carburetor versus its gasket).

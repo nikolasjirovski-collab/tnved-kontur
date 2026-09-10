@@ -1,9 +1,9 @@
-import {esc,pct,num,dateText,resultHTML,detailHTML,publicReport,reportText} from './render.js';
+import {esc,pct,num,dateText,resultHTML,detailHTML,publicReport,reportText} from './render.js?v=3.0.0';
 const $=id=>document.getElementById(id);
 const today=()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');};
 const emptyHTML=$('results-content').innerHTML;
 let report=null,meta=null,revision=0,requestId=0,latestSearch=0,savedId=null,toastTimer;
-const pending=new Map();const worker=new Worker(new URL('./worker.js',import.meta.url),{type:'module'});
+const pending=new Map();const worker=new Worker(new URL('./worker.js?v=3.0.0',import.meta.url),{type:'module'});
 worker.onmessage=({data})=>{const h=pending.get(data.id);if(!h)return;if(data.progress){h.progress?.(data.progress);return;}pending.delete(data.id);data.error?h.reject(Error(data.error)):h.resolve(data.result);};
 worker.onerror=()=>{for(const p of pending.values())p.reject(Error('Не удалось запустить обработку. Обновите страницу или попробуйте другой браузер.'));pending.clear();};
 function request(type,payload={},progress){return new Promise((resolve,reject)=>{const id=++requestId;pending.set(id,{resolve,reject,progress});worker.postMessage({id,type,...payload});});}
