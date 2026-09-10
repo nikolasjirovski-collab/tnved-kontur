@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 import * as render from '../render.js';
-const source=readFileSync(new URL('../app.js',import.meta.url),'utf8').replace(/^import .*?;\n/,'').replaceAll('import.meta.url',JSON.stringify(import.meta.url));
+const source=readFileSync(new URL('../app.js',import.meta.url),'utf8').replace(/^import .*?;\r?\n/,'').replaceAll('import.meta.url',JSON.stringify(import.meta.url));
 function setup(){
   const nodes=new Map(),workers=[];
   const node=id=>{if(!nodes.has(id))nodes.set(id,{value:'',innerHTML:'initial empty',textContent:'',disabled:false,hidden:false,events:{},classList:{toggle(){}},addEventListener(type,fn){this.events[type]=fn;},append(){},close(){},showModal(){},click(){},getBoundingClientRect(){return {};}});return nodes.get(id);};
@@ -30,4 +30,13 @@ test('worker failure is visible and does not leave a stale report',async()=>{
   const promise=vm.runInContext("runSearch({description:'Карбюратор',as_of:'2026-09-09'})",s.context);
   s.worker.onmessage({data:{id:s.worker.last.id,error:'Контрольная ошибка'}});await assert.rejects(promise,/Контрольная ошибка/);
   assert(s.node('results-content').innerHTML.includes('Контрольная ошибка'));assert.equal(vm.runInContext('report',s.context),null);assert.equal(s.node('search-button').disabled,false);
+});
+
+test('download progress keeps the request pending; stale progress does not overwrite edited input',async()=>{
+  const s=setup();s.worker.onmessage({data:{id:1,result:{minimum_date:'2026-04-27'}}});await tick();
+  const promise=vm.runInContext("runSearch({description:'Карбюратор',as_of:'2026-09-09'})",s.context);const id=s.worker.last.id;
+  assert.equal(s.worker.last.limit,5);
+  s.worker.onmessage({data:{id,progress:'Загрузка: 33%'}});await tick();assert.equal(s.node('search-button').disabled,true);assert.equal(s.node('results-subtitle').textContent,'Загрузка: 33%');
+  s.node('product-form').events.input();s.worker.onmessage({data:{id,progress:'Загрузка: 66%'}});assert(s.node('results-subtitle').textContent.includes('Карточка изменена'));
+  s.worker.onmessage({data:{id,result:{candidates:[]}}});await assert.rejects(promise,/изменилась/);
 });

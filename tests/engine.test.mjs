@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import {gunzipSync} from 'node:zlib';
 import {createHash} from 'node:crypto';
 import {Engine,hierarchyShares,screenCode} from '../engine.js';
-import {esc,resultHTML,detailHTML,reportText} from '../render.js';
+import {esc,resultHTML,detailHTML,reportText,publicReport,codeText} from '../render.js';
 const packed=readFileSync(new URL('../public/catalog.json.gz',import.meta.url));
 const data=JSON.parse(gunzipSync(packed));const manifest=JSON.parse(readFileSync(new URL('../public/manifest.json',import.meta.url)));
 data.meta.index_sha256=manifest.index_sha256;
@@ -25,5 +25,9 @@ test('invalid dates, scopes, fields and code lengths fail deliberately',()=>{for
 test('inclusive date transition never produces duplicate active records',()=>{for(const day of ['2026-04-27','2026-06-30','2026-07-01','2026-09-09']){const rows=data.records.filter(r=>(!r.start||r.start<=day)&&(!r.end||r.end>=day));assert.equal(rows.length,new Set(rows.map(r=>r.code)).size);}});
 test('CSV prefixes use meaningful labels and provenance',()=>{const r=query('7415210000').candidates[0];assert(r.path.some(n=>n.code==='741521'));assert(r.path.every(n=>r.code.startsWith(n.code)));assert(r.path.every(n=>!/^\d+$/.test(n.description)));assert(r.path.every(n=>n.line>0));});
 test('normative screening handles ranges and exclusions without merging lines',()=>{assert(screenCode('3926909709','3901–3926'));assert(!screenCode('3926909709','3901–3926, кроме 3926'));assert(screenCode('0101210000','01'));assert(screenCode('1234999999','1234\n5678'));assert(screenCode('5678000000','1234\n5678'));assert(!screenCode('3926909709','3926 если что-то'));assert(!screenCode('3926909709','3926-3901'));});
-test('results render sources, uncertainty, export and untrusted names as text',()=>{const r=query('Карбюратор');r.candidates[0].name='<img src=x onerror=alert(1)>';const html=resultHTML(r)+detailHTML(r.candidates[0]);assert(!html.includes('<img'));assert(html.includes('&lt;img'));assert(html.includes('Копировать код'));assert(html.includes('не вероятность'));assert(reportText(r).includes('SHA-256 индекса'));assert.equal(esc('"<&'), '&quot;&lt;&amp;');});
+test('results hide provenance, retain uncertainty and escape untrusted names',()=>{const r=query('Карбюратор');r.candidates[0].name='<img src=x onerror=alert(1)>';const html=resultHTML(r)+detailHTML(r.candidates[0]);assert(!html.includes('<img'));assert(html.includes('&lt;img'));assert(html.includes('Копировать код'));assert(html.includes('не вероятность'));const outputs=html+reportText(r)+JSON.stringify(publicReport(r));assert(!/SHA-256|xlsx|classifikators|index_sha256|source_hashes|reference_count/.test(outputs));assert.equal(esc('"<&'), '&quot;&lt;&amp;');});
+
+test('codes stay continuous strings across details, results and exports',()=>{const r=query('01 01 21 000 0');const c=r.candidates[0];assert.equal(codeText(c.code),'0101210000');for(const text of [resultHTML(r),detailHTML(c),reportText(r),JSON.stringify(publicReport(r))]){assert(text.includes('0101210000'));assert(!text.includes('0101 21'));}});
+
+test('old reports cannot expose source metadata after sanitization',()=>{const r=query('Карбюратор');r.profile.source='secret.xlsx';r.candidates[0].hits=[{name:'secret.xlsx',refs:[['secret.xlsx','Sheet',7,0]]}];r.sources=['secret.xlsx'];r.warnings=['secret.xlsx'];r.issues=[{file:'secret.xlsx'}];const clean=publicReport(r);assert(!JSON.stringify(clean).includes('secret.xlsx'));assert.equal(clean.confirmed_code,null);assert.deepEqual(publicReport(clean),clean);});
 test('customer row duplicates do not alter matching score',()=>{const p=e.validate({description:'Карбюратор',as_of:'2026-09-09'}),r=e.records.find(r=>r.code==='8409910008'),h=e.customerSearch(p).hits[0];const q=Object.fromEntries(Object.keys(data.weights).map(f=>[f,e.terms(p[f])]));const objects=e.objects(p.description);assert.equal(e.score(p,r,[h],q,objects).score,e.score(p,r,[h,h,h],q,objects).score);});

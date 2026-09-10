@@ -1,0 +1,14 @@
+* text=auto eol=lf
+*.gz binary
+*.bin binary
+*.wasm binary
+public/model/*.json -text
+docs/public/model/*.json -text
+public/model/tokenizer.json binary
+docs/public/model/tokenizer.json binary
+public/model/manifest.json text eol=lf
+docs/public/model/manifest.json text eol=lf
+vendor/*.mjs -diff
+vendor/*.js -diff
+docs/vendor/*.mjs -diff
+docs/vendor/*.js -diff

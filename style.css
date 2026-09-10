@@ -2,3 +2,5 @@
 
 /* Readable working controls at every breakpoint. */
 label{font-size:14px}.form-divider{font-size:14px}.examples button{font-size:12px}.private-note,.candidate-meta,.notice p,.result-note,.secondary-button,.dataset-strip{font-size:12px}.info-card p,.info-card li{font-size:16px}.reference,.tree-row,.field-evidence{font-size:14px}.footnote{font-size:12px!important}.page-heading p{font-size:16px}.candidate-name{font-size:15px}.sources-grid .method-list span{font-size:12px}.top-meta{font-size:12px}
+
+.code,.detail-code,.leaf-node{letter-spacing:0;font-variant-numeric:tabular-nums;white-space:nowrap}

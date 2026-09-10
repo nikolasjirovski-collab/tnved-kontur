@@ -38,5 +38,6 @@
   ],
   "notice": "CSV: classifikators.ru, полнота и дата редакции не подтверждены. ФНС: срез 27.04.2026.",
   "index_sha256": "a40015dc63daa23c705b9acaa41e84050c51fb6321f307011fa969598dd0cce6",
-  "bytes": 3622662
+  "bytes": 3622662,
+  "semantic_sha256": "ca2c4a1f02c3687a48aa851ad5f0d4b4083a7492290242325f46776d199acd43"
 }

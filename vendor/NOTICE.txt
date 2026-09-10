@@ -1,0 +1,7 @@
+This distribution includes:
+Transformers.js 3.8.1, Hugging Face, Apache License 2.0.
+Multilingual MiniLM model, sentence-transformers; ONNX conversion by Xenova, Apache License 2.0.
+Model revision: 2c4055b12046f11709e9df2c122e59ffbdc2f900.
+ONNX Runtime Web, Microsoft Corporation, MIT License.
+Original projects: https://github.com/huggingface/transformers.js and https://github.com/microsoft/onnxruntime
+Model: https://huggingface.co/Xenova/paraphrase-multilingual-MiniLM-L12-v2

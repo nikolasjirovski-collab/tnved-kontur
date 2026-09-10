@@ -1,6 +1,7 @@
 import {Engine} from './engine.js';
-let engine;
-self.onmessage=async ({data:message})=>{
+import {semanticReport} from './semantic.js';
+let engine,semanticPromise,queue=Promise.resolve();
+async function handle(message){
   try{
     if(message.type==='init'){
       const [mr,dr]=await Promise.all([fetch('./public/manifest.json',{cache:'no-cache'}),fetch('./public/catalog.json.gz')]);
@@ -10,11 +11,25 @@ self.onmessage=async ({data:message})=>{
       if(hash!==manifest.index_sha256)throw Error('Контрольная сумма справочника не совпала. Обновите страницу: результаты не рассчитаны.');
       if(typeof DecompressionStream==='undefined')throw Error('Для этого справочника нужен современный браузер с поддержкой распаковки gzip.');
       const stream=new Blob([buffer]).stream().pipeThrough(new DecompressionStream('gzip'));
-      const data=JSON.parse(await new Response(stream).text());data.meta.index_sha256=hash;engine=new Engine(data);
+      const data=JSON.parse(await new Response(stream).text());data.meta.index_sha256=hash;data.meta.semantic_sha256=manifest.semantic_sha256;engine=new Engine(data);
       self.postMessage({id:message.id,result:engine.meta});
     }else if(message.type==='classify'){
       if(!engine)throw Error('Дождитесь загрузки справочника.');
-      self.postMessage({id:message.id,result:engine.classify(message.profile,message.limit)});
+      const profile=engine.validate(message.profile);
+      let result;
+      if(/^\d[\d\s]*$/.test(profile.description))result=engine.classify(profile,5);
+      else{
+        const progress=text=>self.postMessage({id:message.id,progress:text});
+        if(!semanticPromise)semanticPromise=import('./semantic-runtime.js').then(m=>m.loadSemantic(engine.meta.index_sha256,engine.meta.semantic_sha256,progress)).catch(error=>{semanticPromise=null;throw error;});
+        try{
+          const semantic=await semanticPromise;progress('Сравниваем описание с категориями товаров…');
+          const vector=await semantic.encode(profile);
+          result=semanticReport(engine,profile,vector,semantic.index,semantic.matrix,5);
+        }catch(error){if(error.code==='INPUT_TOO_LONG')throw Error('Сократите описание: оставьте название детали, назначение, материал и ключевые характеристики.');throw Error('Не удалось выполнить смысловой подбор. Проверьте соединение и повторите попытку. Для первого запуска необходимо около 200 МБ свободного трафика и современный браузер.');}
+      }
+      self.postMessage({id:message.id,result});
     }else throw Error('Неизвестный запрос.');
   }catch(error){self.postMessage({id:message.id,error:error.message||'Не удалось выполнить подбор.'});}
-};
+}
+// Keep one encoder/session active; concurrent searches cannot mix input or progress.
+self.onmessage=({data})=>{queue=queue.then(()=>handle(data));};

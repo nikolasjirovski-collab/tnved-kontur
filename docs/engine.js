@@ -1,4 +1,19 @@
-export const VERSION = 'web-hierarchical-support-v1';
+export const VERSION = 'web-tools-support-v2';
+export function toolContext(profile,text){
+  const tool=/бензокос|мотокос|триммер|бензопил|электропил|электроинструмент|бензоинструмент|перфоратор|шурупов[её]рт|дрел|лобзик|шлиф|болгар|газонокос|мотоблок|культиватор|цепн.{0,8}пил|ручн.{0,30}инструмент|инструмент.{0,40}встроенн.{0,25}двигател/i.test(text);
+  const unrelated=/авиац|летательн|самол[её]т|вертол[её]т|автомобил|моторных транспортных|железнодорож|судовых|судов и|медицинск|головные уборы|головных уборов|защиты лица|защиты глаз/i.test(text);
+  const petrol=/бензокос|мотокос|бензопил|бензоинструмент|бензинов/i.test(text);
+  const electric=/электроинструмент|электропил|шурупов[её]рт|перфоратор|(?<!не)электрическ.{0,15}двигател|аккумуляторн/i.test(text);
+  const query=[profile.description,profile.purpose].filter(Boolean).join(' ');
+  const queryPetrol=/бензокос|мотокос|бензопил|бензоинструмент|бензинов/i.test(query),queryElectric=/электроинструмент|электропил|шурупов[её]рт|перфоратор|аккумуляторн/i.test(query);
+  const requested=profile.equipment==='petrol'?'petrol':profile.equipment==='electric'?'electric':queryPetrol&&!queryElectric?'petrol':queryElectric&&!queryPetrol?'electric':null;
+  const incompatible=requested==='petrol'&&electric&&!petrol||requested==='electric'&&petrol&&!electric;
+  const reasons=[];let factor=1;
+  if(tool){factor*=1.06;reasons.push('Назначение связано с электро- или бензоинструментом.');}
+  if(unrelated){factor*=.2;reasons.push('Описание варианта относится к другой отрасли или оборудованию.');}
+  if(incompatible){factor*=.15;reasons.push('Указанный тип привода не соответствует описанию варианта.');}
+  return {factor,reasons,incompatible,unrelated};
+}
 const intersect = (a,b) => new Set([...a].filter(x=>b.has(x)));
 const union = (a,b) => new Set([...a,...b]);
 const cov = (a,b) => a.size ? intersect(a,b).size / a.size : 0;
@@ -60,11 +75,13 @@ export class Engine {
   }
   path(code){return [2,4,6,8,9,10].map(n=>this.data.nodes[code.slice(0,n)]).filter(Boolean);}
   validate(input){
-    const allowed=['description','material','purpose','construction','specifications','as_of','source'];
+    const allowed=['description','material','purpose','construction','specifications','as_of','source','equipment'];
     if(!input||typeof input!=='object'||Array.isArray(input)||Object.keys(input).some(k=>!allowed.includes(k)))throw Error('Неизвестные поля карточки товара.');
     if(Object.values(input).some(v=>typeof v!=='string'||v.length>10000))throw Error('Некорректный формат описания.');
     const p=Object.fromEntries(allowed.map(k=>[k,(input[k]||'').trim()]));
     if(!p.description)throw Error('Введите название товара или код.');
+    p.equipment=p.equipment||'all';
+    if(!['all','electric','petrol'].includes(p.equipment))throw Error('Выберите тип инструмента.');
     if(p.source&&!this.meta.sources.includes(p.source))throw Error('Неизвестный каталог.');
     if(!/^\d{4}-\d{2}-\d{2}$/.test(p.as_of)||!Number.isFinite(Date.parse(p.as_of))||new Date(p.as_of).toISOString().slice(0,10)!==p.as_of)throw Error('Укажите корректную дату операции.');
     if(p.as_of<this.meta.minimum_date)throw Error('Веб-версия содержит срезы с '+this.meta.minimum_date+'. Для более ранней даты используйте настольную историю номенклатуры.');
@@ -111,7 +128,11 @@ export class Engine {
       const text=r.specific+(h?' '+h.name:'');const candidate=intersect(this.terms(text),this.materials);const contradictions=[];
       if(requested.size&&candidate.size===1&&!intersect(requested,candidate).size){score*=.15;contradictions.push('Материал в описании варианта отличается от указанного: '+[...candidate].join(', '));}
       if(/бензокос|бензинов/i.test(Object.keys(this.data.weights).map(f=>p[f]).join(' '))&&text.toLowerCase().includes('инструментов со встроенным электрическим двигателем')){score*=.15;contradictions.push('Бензиновый привод сопоставлен с ветвью для встроенного электродвигателя.');}
-      if(score>0&&(!best||score>best.score))best={score,fields,contradictions,hit:h,coverage:cov(query.description,target)};
+      const context=toolContext(p,[r.description||'',this.data.nodes[r.code]?.description||'',h?.name||''].join(' '));
+      score*=context.factor;
+      if(context.incompatible)contradictions.push('Тип инструмента не совпадает с указанным приводом.');
+      if(context.unrelated)contradictions.push('Назначение варианта выходит за профиль электро- и бензоинструмента.');
+      if(score>0&&(!best||score>best.score))best={score,fields,contradictions,domain_reasons:context.reasons,hit:h,coverage:cov(query.description,target)};
     }return best;
   }
   publicHit(h,source){return {name:h.name,code:h.code,match:h.match,kind:h.kind,refs:h.refs.filter(r=>!source||r[0]===source),reference_count:Object.entries(h.counts).filter(([f])=>!source||source===f).reduce((n,[,v])=>n+v,0)};}
@@ -151,7 +172,7 @@ export class Engine {
     const candidates=evaluations.slice(0,limit).map(e=>({code:e.code,name:e.hit?.name||this.data.nodes[e.code]?.description||e.r.description,
       description:e.r.description,heading:e.r.heading,chapter:e.r.chapter,start:e.r.start,end:e.r.end,line:e.r.line,
       share:codeQuery?null:round(distribution.shares[e.code]),group_share:codeQuery?null:round(distribution.groups[e.code.slice(0,2)]),
-      fields:e.fields,contradictions:e.contradictions,score:round(e.score*100),path:this.path(e.code),
+      fields:e.fields,contradictions:e.contradictions,domain_reasons:e.domain_reasons||[],score:round(e.score*100),path:this.path(e.code),
       notes:{chapter:this.data.strings[e.r.chapter_notes],section:this.data.strings[e.r.section_notes]},
       hits:(e.hit?[e.hit,...(hitsByCode.get(e.code)||[]).filter(h=>h!==e.hit)]:(hitsByCode.get(e.code)||[])).slice(0,5).map(h=>this.publicHit(h,p.source)),
       requirements:this.requirements(e.code)}));

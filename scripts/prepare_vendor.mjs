@@ -1,0 +1,11 @@
+import {copyFile,mkdir,writeFile} from 'node:fs/promises';
+const out=new URL('../vendor/',import.meta.url),source=new URL('../node_modules/@huggingface/transformers/',import.meta.url);
+await mkdir(out,{recursive:true});
+for(const name of ['transformers.min.js','ort-wasm-simd-threaded.jsep.mjs','ort-wasm-simd-threaded.jsep.wasm'])await copyFile(new URL('dist/'+name,source),new URL(name,out));
+await copyFile(new URL('LICENSE',source),new URL('LICENSE-APACHE-2.0.txt',out));
+await copyFile(new URL('../node_modules/.pnpm/@huggingface+jinja@0.5.10/node_modules/@huggingface/jinja/LICENSE',import.meta.url),new URL('LICENSE-JINJA.txt',out));
+const license=await fetch('https://raw.githubusercontent.com/microsoft/onnxruntime/v1.22.0/LICENSE');
+if(!license.ok)throw Error('Could not fetch ONNX Runtime license');
+await writeFile(new URL('LICENSE-ONNX.txt',out),await license.text());
+await writeFile(new URL('NOTICE.txt',out),`This distribution includes:\nTransformers.js 3.8.1, Hugging Face, Apache License 2.0.\nMultilingual MiniLM model, sentence-transformers; ONNX conversion by Xenova, Apache License 2.0.\nModel revision: 2c4055b12046f11709e9df2c122e59ffbdc2f900.\nONNX Runtime Web, Microsoft Corporation, MIT License.\nOriginal projects: https://github.com/huggingface/transformers.js and https://github.com/microsoft/onnxruntime\nModel: https://huggingface.co/Xenova/paraphrase-multilingual-MiniLM-L12-v2\n`);
+console.log('Pinned browser runtime and licenses prepared.');
