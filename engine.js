@@ -54,7 +54,7 @@ export function hierarchyShares(scores) {
 
 export class Engine {
   constructor(data){
-    this.data=data;this.meta=data.meta;this.tokenize=makeTokenizer(data.tokenizer);this.materials=new Set(data.materials);
+    this.data=data;this.meta=data.meta;this.tokenize=makeTokenizer(data.tokenizer);this.materials=new Set(data.materials);this.elitech=new Map(Object.entries(data.elitech?.items||{}));
     this.records=data.records.map(r=>({...r,terms:new Set(r.terms),objects:new Set(r.objects),heading:data.strings[r.heading],chapter:data.strings[r.chapter]}));
     this.entries=data.entries.map(e=>({...e,terms:new Set(e.terms),expanded:this.terms(e.name),objects:this.objects(e.name)}));
     this.exact=new Map();this.inverted=new Map();
@@ -91,7 +91,9 @@ export class Engine {
     const norm=normalize(p.description),qt=this.tokenize(p.description);
     const scope=e=>!p.source||Object.hasOwn(e.counts,p.source);
     const issues=this.data.issues.filter(i=>normalize(i.name)===norm&&(!p.source||i.file===p.source));
-    const exact=(this.exact.get(norm)||[]).map(i=>this.entries[i]).filter(scope);
+    const elitechCodes=this.elitech.get(norm)||[];
+    const elitech=elitechCodes.map(code=>({name:p.description,code,normalized:norm,kind:'elitech',terms:qt,expanded:qt,objects:this.objects(p.description),counts:{'elitech 2.xlsx':1,'ELITECH.xlsx':1},refs:[]}));
+    const exact=[...elitech,...(this.exact.get(norm)||[]).map(i=>this.entries[i])].filter(scope);
     if(exact.length)return {hits:exact.map(e=>({...e,match:'exact'})),issues,exact_codes:[...new Set(exact.map(e=>e.code))].sort()};
     if(issues.length)return {hits:[],issues,exact_codes:[]};
     const indices=new Set();for(const t of qt)for(const i of this.inverted.get(t)||[])indices.add(i);
@@ -148,6 +150,7 @@ export class Engine {
     let evaluations=[];
     for(const [code,r] of active){
       if(p.source&&!hitsByCode.has(code))continue;
+      if(supplied.exact_codes.length&&!supplied.exact_codes.includes(code))continue;
       if(codeQuery){if(code.startsWith(compact))evaluations.push({code,r,score:1,fields:{},contradictions:[],hit:hitsByCode.get(code)?.[0]||null});continue;}
       const ev=this.score(p,r,hitsByCode.get(code)||[],query,objects);
       if(ev&&ev.coverage>=.34)evaluations.push({code,r,...ev});

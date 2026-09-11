@@ -10,7 +10,7 @@ const model=JSON.parse(await readFile(join(root,'public/model/manifest.json'),'u
 const semanticPacked=await readFile(join(root,'public/semantic.json.gz'));
 const semantic=JSON.parse(gunzipSync(semanticPacked));
 const files=['index.html','style.css','favicon.svg','app.js','render.js','engine.js','worker.js','semantic.js','semantic-runtime.js',
- 'public/manifest.json','public/catalog.json.gz','public/semantic.json.gz','public/vectors.f32.gz','public/model/manifest.json',
+ 'public/manifest.json','public/catalog.json.gz','public/elitech.json','public/semantic.json.gz','public/vectors.f32.gz','public/model/manifest.json',
  ...Object.keys(model.files).filter(n=>n.endsWith('.json')).map(n=>'public/model/'+n),...model.parts.map(p=>'public/model/'+p.file),
  'vendor/transformers.min.js','vendor/ort-wasm-simd-threaded.jsep.mjs','vendor/ort-wasm-simd-threaded.jsep.wasm','vendor/LICENSE-APACHE-2.0.txt','vendor/LICENSE-ONNX.txt','vendor/LICENSE-JINJA.txt','vendor/NOTICE.txt'];
 for(const file of files.filter(f=>f.endsWith('.js')&&!f.startsWith('vendor/'))){const check=spawnSync(process.execPath,['--check',join(root,file)],{encoding:'utf8'});if(check.status!==0)throw Error(check.stderr);}
