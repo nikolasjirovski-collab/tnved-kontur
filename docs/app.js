@@ -27,7 +27,7 @@ document.querySelectorAll('[data-example]').forEach(button=>button.addEventListe
 const getProfile=()=>Object.fromEntries(new FormData($('product-form')));
 async function runSearch(profile=getProfile()){
   const current=++revision,searchToken=++latestSearch;report=null;savedId=null;searchState(true,meta?'Подбираем код…':'Загружаем справочник…');
-  $('results-content').innerHTML='<div class="loading-state"><span class="spinner"></span>Сравниваем смысл описаний…</div>';$('results-subtitle').textContent='Первый подбор может занять больше времени: загружаются данные поиска';
+  $('results-content').innerHTML='<div class="loading-state"><span class="spinner"></span>Ищем по названию и синонимам…</div>';$('results-subtitle').textContent='Поиск по названию и синонимам';
   try{if(!meta)await initialize();if(current!==revision)throw Error('Карточка изменилась во время подбора.');searchState(true,'Подбираем код…');const result=await request('classify',{profile,limit:5},text=>{if(current===revision){$('results-subtitle').textContent=text;searchState(true,text);}});if(current!==revision)throw Error('Карточка изменилась во время подбора.');report=publicReport(result);renderResults();return report;}
   catch(error){if(current===revision){$('results-content').innerHTML=`<div class="error-state">${esc(error.message)}</div>`;$('results-subtitle').textContent='Подбор не выполнен';}throw error;}
   finally{if(searchToken===latestSearch)searchState(false);}

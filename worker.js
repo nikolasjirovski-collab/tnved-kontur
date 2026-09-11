@@ -1,6 +1,5 @@
 import {Engine} from './engine.js?v=3.0.0';
-import {semanticReport} from './semantic.js?v=3.0.0';
-let engine,semanticPromise,queue=Promise.resolve();
+let engine,queue=Promise.resolve();
 async function handle(message){
   try{
     if(message.type==='init'){
@@ -16,17 +15,8 @@ async function handle(message){
     }else if(message.type==='classify'){
       if(!engine)throw Error('Дождитесь загрузки справочника.');
       const profile=engine.validate(message.profile);
-      let result;
-      if(/^\d[\d\s]*$/.test(profile.description))result=engine.classify(profile,5);
-      else{
-        const progress=text=>self.postMessage({id:message.id,progress:text});
-        if(!semanticPromise)semanticPromise=import('./semantic-runtime.js?v=3.0.0').then(m=>m.loadSemantic(engine.meta.index_sha256,engine.meta.semantic_sha256,progress)).catch(error=>{semanticPromise=null;throw error;});
-        try{
-          const semantic=await semanticPromise;progress('Сравниваем описание с категориями товаров…');
-          const vector=await semantic.encode(profile);
-          result=semanticReport(engine,profile,vector,semantic.index,semantic.matrix,5);
-        }catch(error){if(error.code==='INPUT_TOO_LONG')throw Error('Сократите описание: оставьте название детали, назначение, материал и ключевые характеристики.');throw Error('Не удалось выполнить смысловой подбор. Проверьте соединение и повторите попытку. Для первого запуска необходимо около 200 МБ свободного трафика и современный браузер.');}
-      }
+      self.postMessage({id:message.id,progress:'Ищем по названию и синонимам…'});
+      const result=engine.classify(profile,5);
       self.postMessage({id:message.id,result});
     }else throw Error('Неизвестный запрос.');
   }catch(error){self.postMessage({id:message.id,error:error.message||'Не удалось выполнить подбор.'});}
