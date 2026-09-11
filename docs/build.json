@@ -14,6 +14,7 @@
     "semantic-runtime.js",
     "public/manifest.json",
     "public/catalog.json.gz",
+    "public/elitech.json",
     "public/semantic.json.gz",
     "public/vectors.f32.gz",
     "public/model/manifest.json",
