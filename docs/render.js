@@ -13,6 +13,7 @@ export function publicReport(r){
     groups:(r.groups||[]).map(g=>({code:String(g.code),name:g.name,share:g.share})),
     candidates:(r.candidates||[]).map(c=>({code:String(c.code),name:c.name,share:c.share,group_share:c.group_share,
       fields:{},
+      evidence:{items:Number(c.evidence?.items)||0,sources:Number(c.evidence?.sources)||0,exact:Boolean(c.evidence?.exact)},
       contradictions:c.contradictions||[],domain_reasons:c.domain_reasons||[],path:(c.path||[]).map(n=>({code:String(n.code),description:n.description}))})),
     exact_codes:(r.exact_codes||[]).map(String),questions:r.questions||[],warnings:[...warnings],
     unavailable:(r.unavailable||[]).map(c=>({code:String(c.code),name:c.name,reason:'Для выбранной даты код требует дополнительной проверки; оценка не рассчитана.'}))};
@@ -34,6 +35,7 @@ export function detailHTML(raw){
   const c=publicReport({candidates:[raw]}).candidates[0];
   return `<h2 class="detail-code" id="detail-title">${codeText(c.code)}</h2><p class="detail-subtitle">${esc(c.name)}</p><div class="result-actions"><button id="copy-code" class="secondary-button">Копировать код</button>${c.share!==null?`<span class="group-chip">Доля соответствия <b>${pct(c.share)}%</b></span>`:''}</div>
     ${c.contradictions.length?`<div class="alert-box">${c.contradictions.map(esc).join('<br>')}</div>`:''}
+    ${c.evidence.items?`<section class="detail-section"><h3>Основание результата</h3><p class="reference">Найдено совпадений в ваших товарных данных: ${num(c.evidence.items)}${c.evidence.sources?`. Независимых каталогов: ${num(c.evidence.sources)}.`:''}${c.evidence.exact?' Название совпало точно.':''}</p></section>`:''}
     ${c.domain_reasons.length?`<section class="detail-section"><h3>Совместимость с инструментом</h3><ul>${c.domain_reasons.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></section>`:''}
     <section class="detail-section"><h3>Категория товара</h3>${c.path.map(n=>`<div class="tree-row"><code>${codeText(n.code)}</code><p>${esc(n.description)}</p></div>`).join('')||'<p class="reference">Категорию необходимо уточнить.</p>'}</section>
     <div class="alert-box">Код предварительный. Перед использованием проверьте характеристики товара и актуальность классификации.</div>`;

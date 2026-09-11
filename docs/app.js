@@ -7,7 +7,7 @@ const pending=new Map();let worker=null,initializing=null;
 function resetWorker(message){worker?.terminate();worker=null;meta=null;for(const p of pending.values()){clearTimeout(p.timer);p.reject(Error(message));}pending.clear();}
 function request(type,payload={},progress){return new Promise((resolve,reject)=>{
   try{
-    if(!worker){worker=new Worker(new URL('./worker.js?v=3.0.1',import.meta.url),{type:'module'});
+    if(!worker){worker=new Worker(new URL('./worker.js?v=4.0.0',import.meta.url),{type:'module'});
       worker.onmessage=({data})=>{const h=pending.get(data.id);if(!h)return;clearTimeout(h.timer);if(data.progress){h.arm();h.progress?.(data.progress);return;}pending.delete(data.id);data.error?h.reject(Error(data.error)):h.resolve(data.result);};
       worker.onerror=()=>resetWorker('Обработка прервалась. Нажмите «Подобрать код», чтобы повторить попытку.');
       worker.onmessageerror=()=>resetWorker('Не удалось получить результат. Повторите подбор.');

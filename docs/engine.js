@@ -1,4 +1,4 @@
-export const VERSION = 'web-tools-support-v2';
+export const VERSION = 'web-hybrid-name-v4';
 export function toolContext(profile,text){
   const tool=/бензокос|мотокос|триммер|бензопил|электропил|электроинструмент|бензоинструмент|перфоратор|шурупов[её]рт|дрел|лобзик|шлиф|болгар|газонокос|мотоблок|культиватор|цепн.{0,8}пил|ручн.{0,30}инструмент|инструмент.{0,40}встроенн.{0,25}двигател/i.test(text);
   const unrelated=/авиац|летательн|самол[её]т|вертол[её]т|автомобил|моторных транспортных|железнодорож|судовых|судов и|медицинск|головные уборы|головных уборов|защиты лица|защиты глаз/i.test(text);
@@ -21,6 +21,30 @@ const round = (n,p=4) => Number(n.toFixed(p));
 const beforeFor = s => s.split(/(?<![а-яёa-z])для(?![а-яёa-z])/iu)[0];
 export const normalize = s => s.normalize('NFKC').toLowerCase().replaceAll('ё','е').match(/[\p{L}\p{N}_]+/gu)?.join(' ') || '';
 export const validOn = (r,day) => (!r.start || r.start<=day) && (!r.end || r.end>=day);
+
+const FACETS={
+  part:{
+    carburetor:/\bкарбюратор\w*/i,guard:/\b(?:кожух|щиток)\w*/i,gear:/\b(?:шестерн|зубчат\w* колес)\w*/i,
+    belt:/\bремен\w*/i,chain:/\bцеп(?:ь|и|ью|ей)\b/i,battery:/\b(?:аккумулятор|батаре)\w*/i,filter:/\bфильтр\w*/i,
+    bearing:/\bподшипник\w*/i,seal:/\b(?:сальник|уплотнител)\w*/i,gasket:/\bпрокладк\w*/i,
+    rotor:/\b(?:ротор|якорь)\w*/i,stator:/\bстатор\w*/i,switch:/\b(?:выключател|переключател|кнопк)\w*/i,
+    starter:/\bстартер\w*/i,motor:/\b(?:двигател|мотор)\w*/i,reducer:/\bредуктор\w*/i,
+    wheel:/\b(?:колесо|колеса|колесу|колесом)\b/i,blade:/\b(?:нож|лезви)\w*/i,disc:/\bдиск\w*/i,
+    brush:/\bщетк\w*/i,cable:/\b(?:кабел|провод)\w*/i,coil:/\bкатушк\w*/i,piston:/\bпоршен\w*/i,
+    cylinder:/\bцилиндр\w*/i,shaft:/\b(?:вал|коленвал)\w*/i,clutch:/\b(?:муфт|сцеплен)\w*/i,
+    bushing:/\bвтулк\w*/i,sparkplug:/\bсвеч\w*/i,tire:/\bшин(?:а|ы|у|ой|е)\b/i
+  },
+  equipment:{
+    trimmer:/\b(?:триммер|бензокос|мотокос)\w*/i,chainsaw:/\b(?:бензопил|электропил|цепн\w* пил)\w*/i,
+    drill:/\b(?:дрел|шуруповерт|шуруповёрт)\w*/i,hammer:/\bперфоратор\w*/i,grinder:/\b(?:болгарк|ушм|шлифмашин)\w*/i,
+    mower:/\bгазонокосил\w*/i,generator:/\bгенератор\w*/i,outboard:/\bлодочн\w* мотор\w*/i,
+    motorcycle:/\b(?:мотоцикл|скутер|мопед)\w*/i,bicycle:/\bвелосипед\w*/i,
+    vacuum:/\bпылесос\w*/i,washer:/\bстиральн\w* машин\w*/i,fridge:/\b(?:холодильник|морозильник)\w*/i
+  }
+};
+function facets(value){const text=normalize(value),out={part:new Set(),equipment:new Set()};for(const [group,rules] of Object.entries(FACETS))for(const [name,re] of Object.entries(rules))if(re.test(text))out[group].add(name);return out;}
+const overlaps=(a,b)=>!a.size||!b.size||intersect(a,b).size>0;
+const evidenceOf=h=>{const sources=Object.keys(h?.counts||{}).length,rows=Object.values(h?.counts||{}).reduce((n,v)=>n+v,0);return {sources,rows};};
 
 export function makeTokenizer(config) {
   const stop=new Set(config.stop);
@@ -56,7 +80,7 @@ export class Engine {
   constructor(data){
     this.data=data;this.meta=data.meta;this.tokenize=makeTokenizer(data.tokenizer);this.materials=new Set(data.materials);this.elitech=new Map(Object.entries(data.elitech?.items||{}));
     this.records=data.records.map(r=>({...r,terms:new Set(r.terms),objects:new Set(r.objects),heading:data.strings[r.heading],chapter:data.strings[r.chapter]}));
-    this.entries=data.entries.map(e=>({...e,terms:new Set(e.terms),expanded:this.terms(e.name),objects:this.objects(e.name)}));
+    this.entries=data.entries.map(e=>({...e,terms:new Set(e.terms),expanded:this.terms(e.name),objects:this.objects(e.name),facets:facets(e.name)}));
     this.exact=new Map();this.inverted=new Map();
     this.entries.forEach((e,i)=>{
       if(e.kind==='xlsx'){if(!this.exact.has(e.normalized))this.exact.set(e.normalized,[]);this.exact.get(e.normalized).push(i);}
@@ -88,29 +112,29 @@ export class Engine {
     return p;
   }
   customerSearch(p){
-    const norm=normalize(p.description),qt=this.tokenize(p.description);
+    const norm=normalize(p.description),qt=this.tokenize(p.description),qf=facets(p.description);
     const scope=e=>!p.source||Object.hasOwn(e.counts,p.source);
     const issues=this.data.issues.filter(i=>normalize(i.name)===norm&&(!p.source||i.file===p.source));
     const elitechCodes=this.elitech.get(norm)||[];
-    const elitech=elitechCodes.map(code=>({name:p.description,code,normalized:norm,kind:'elitech',terms:qt,expanded:qt,objects:this.objects(p.description),counts:{'elitech 2.xlsx':1,'ELITECH.xlsx':1},refs:[]}));
+    const elitech=elitechCodes.map(code=>({name:p.description,code,normalized:norm,kind:'elitech',terms:qt,expanded:qt,objects:this.objects(p.description),facets:qf,counts:{'elitech 2.xlsx':1,'ELITECH.xlsx':1},refs:[]}));
     const exact=[...elitech,...(this.exact.get(norm)||[]).map(i=>this.entries[i])].filter(scope);
     if(exact.length)return {hits:exact.map(e=>({...e,match:'exact'})),issues,exact_codes:[...new Set(exact.map(e=>e.code))].sort()};
     if(issues.length)return {hits:[],issues,exact_codes:[]};
     const indices=new Set();for(const t of qt)for(const i of this.inverted.get(t)||[])indices.add(i);
-    const anchor=(p.description.toLowerCase().match(/[а-яёa-z0-9]+/g)||[]).map(w=>[...this.tokenize(w)][0]).find(Boolean);
     let selected=[];
     for(const i of indices){
-      const e=this.entries[i];if(!scope(e)||anchor&&!e.terms.has(anchor))continue;
+      const e=this.entries[i];if(!scope(e))continue;
       const common=intersect(qt,e.terms),coverage=cov(qt,e.terms);
-      if(coverage<(qt.size<=2?1:.5))continue;
-      const first=(e.name.toLowerCase().match(/[а-яёa-z]+/g)||[]).map(w=>[...this.tokenize(w)][0]).find(Boolean);
-      const primary=first===anchor;
-      const relevance=100*coverage+30*common.size/Math.max(1,e.terms.size)+(primary?60:0)+(e.normalized.startsWith(norm)?15:0)-(e.kind==='pdf'?60:0);
-      selected.push({...e,match:'similar',relevance,primary});
+      if(coverage<(qt.size<=2?.5:.34))continue;
+      const partMatch=intersect(qf.part,e.facets.part).size,equipmentMatch=intersect(qf.equipment,e.facets.equipment).size;
+      if(qf.part.size&&e.facets.part.size&&!partMatch)continue;
+      const evidence=evidenceOf(e);
+      const relevance=100*coverage+40*common.size/Math.max(1,e.terms.size)+55*partMatch+28*equipmentMatch+
+        (e.normalized.includes(norm)||norm.includes(e.normalized)?30:0)+Math.min(25,evidence.sources*7+Math.log2(evidence.rows+1)*2)-(e.kind==='pdf'?35:0);
+      selected.push({...e,match:'similar',relevance});
     }
-    if(selected.some(e=>e.primary&&e.kind==='xlsx'))selected=selected.filter(e=>e.primary);
     selected.sort((a,b)=>b.relevance-a.relevance||a.code.localeCompare(b.code)||a.name.localeCompare(b.name));
-    return {hits:selected,issues,exact_codes:[]};
+    return {hits:selected.slice(0,2500),issues,exact_codes:[]};
   }
   score(p,r,hits,query,objects){
     let best=null;
@@ -125,9 +149,12 @@ export class Engine {
         score+=w*fields[f].coverage;weights+=w;
       }
       score/=weights;
-      if(h)score=Math.min(1,score+(h.kind==='xlsx'?(h.match==='exact'?.12:.04):.01));
+      if(h){const evidence=evidenceOf(h);score=Math.min(1,score+(h.kind==='xlsx'?(h.match==='exact'?.14:.05):.01)+Math.min(.13,evidence.sources*.035+Math.log2(evidence.rows+1)*.008));}
       let requested=intersect(query.material,this.materials);if(!requested.size)requested=intersect(query.description,this.materials);
       const text=r.specific+(h?' '+h.name:'');const candidate=intersect(this.terms(text),this.materials);const contradictions=[];
+      const requestedFacets=facets(Object.keys(this.data.weights).map(f=>p[f]).join(' ')),candidateFacets=h?.facets||facets(text);
+      if(requestedFacets.part.size&&candidateFacets.part.size&&!overlaps(requestedFacets.part,candidateFacets.part)){score*=.08;contradictions.push('Тип детали не совпадает с названием найденного товара.');}
+      if(requestedFacets.equipment.size&&candidateFacets.equipment.size&&!overlaps(requestedFacets.equipment,candidateFacets.equipment)){score*=.35;contradictions.push('Найденный товар предназначен для другого вида техники.');}
       if(requested.size&&candidate.size===1&&!intersect(requested,candidate).size){score*=.15;contradictions.push('Материал в описании варианта отличается от указанного: '+[...candidate].join(', '));}
       if(/бензокос|бензинов/i.test(Object.keys(this.data.weights).map(f=>p[f]).join(' '))&&text.toLowerCase().includes('инструментов со встроенным электрическим двигателем')){score*=.15;contradictions.push('Бензиновый привод сопоставлен с ветвью для встроенного электродвигателя.');}
       const context=toolContext(p,[r.description||'',this.data.nodes[r.code]?.description||'',h?.name||''].join(' '));
@@ -137,7 +164,7 @@ export class Engine {
       if(score>0&&(!best||score>best.score))best={score,fields,contradictions,domain_reasons:context.reasons,hit:h,coverage:cov(query.description,target)};
     }return best;
   }
-  publicHit(h,source){return {name:h.name,code:h.code,match:h.match,kind:h.kind,refs:h.refs.filter(r=>!source||r[0]===source),reference_count:Object.entries(h.counts).filter(([f])=>!source||source===f).reduce((n,[,v])=>n+v,0)};}
+  publicHit(h,source){const selected=Object.entries(h.counts).filter(([f])=>!source||source===f);return {name:h.name,code:h.code,match:h.match,kind:h.kind,refs:h.refs.filter(r=>!source||r[0]===source),reference_count:selected.reduce((n,[,v])=>n+v,0),source_count:selected.length};}
   classify(input,limit=20){
     const p=this.validate(input);limit=Math.max(1,Math.min(100,Number(limit)||20));
     const compact=p.description.replace(/\s/g,'');const codeQuery=/^\d+$/.test(compact);
@@ -172,13 +199,14 @@ export class Engine {
       }
     }
     const branchTable=(values,field)=>Object.entries(values).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).map(([code,share])=>({code,share:round(share),name:this.data.nodes[code]?.description||evaluations.find(e=>e.code.startsWith(code))?.r[field]||''}));
-    const candidates=evaluations.slice(0,limit).map(e=>({code:e.code,name:e.hit?.name||this.data.nodes[e.code]?.description||e.r.description,
+    const candidates=evaluations.slice(0,limit).map(e=>{const support=hitsByCode.get(e.code)||[],sourceNames=new Set(support.flatMap(h=>Object.keys(h.counts||{})));return {code:e.code,name:e.hit?.name||this.data.nodes[e.code]?.description||e.r.description,
       description:e.r.description,heading:e.r.heading,chapter:e.r.chapter,start:e.r.start,end:e.r.end,line:e.r.line,
       share:codeQuery?null:round(distribution.shares[e.code]),group_share:codeQuery?null:round(distribution.groups[e.code.slice(0,2)]),
       fields:e.fields,contradictions:e.contradictions,domain_reasons:e.domain_reasons||[],score:round(e.score*100),path:this.path(e.code),
+      evidence:{items:support.reduce((n,h)=>n+Object.values(h.counts||{}).reduce((s,v)=>s+v,0),0),sources:sourceNames.size,exact:supplied.exact_codes.includes(e.code)},
       notes:{chapter:this.data.strings[e.r.chapter_notes],section:this.data.strings[e.r.section_notes]},
       hits:(e.hit?[e.hit,...(hitsByCode.get(e.code)||[]).filter(h=>h!==e.hit)]:(hitsByCode.get(e.code)||[])).slice(0,5).map(h=>this.publicHit(h,p.source)),
-      requirements:this.requirements(e.code)}));
+      requirements:this.requirements(e.code)};});
     const guides=this.data.guidance.families.filter(g=>g.triggers.some(t=>p.description.toLowerCase().includes(t)));
     const labels={material:'материал и состав',purpose:'назначение и модель оборудования',construction:'конструкцию и комплектность',specifications:'размеры и технические параметры'};
     const questions=[...Object.entries(labels).filter(([f])=>!p[f]).map(([,l])=>'Уточните '+l+'.'),...guides.flatMap(g=>g.questions)];

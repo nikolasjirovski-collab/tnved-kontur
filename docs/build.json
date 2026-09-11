@@ -1,7 +1,7 @@
 {
   "version": "3.0.0",
-  "index_sha256": "a40015dc63daa23c705b9acaa41e84050c51fb6321f307011fa969598dd0cce6",
-  "semantic_sha256": "ca2c4a1f02c3687a48aa851ad5f0d4b4083a7492290242325f46776d199acd43",
+  "index_sha256": "df42b4553049e8b011c6f11205f010eae012dc18e7f5d5bb7dc49e8c1a9bcb62",
+  "semantic_sha256": "653a77ec7c6b0d5fb09a5997bb56e570c508618626751f30617171984a6313db",
   "files": [
     "index.html",
     "style.css",

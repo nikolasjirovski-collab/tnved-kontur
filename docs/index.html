@@ -26,18 +26,14 @@
             <form id="product-form">
               <label for="description">Название или код ТН ВЭД</label><textarea id="description" name="description" required maxlength="3000" rows="4" placeholder="Например, карбюратор для бензокосы"></textarea>
               <div class="examples"><span>Попробовать</span><button type="button" data-example="Карбюратор">Карбюратор ↗</button><button type="button" data-example="Шестерня ведомая натяжителя цепи">Шестерня ↗</button><button type="button" data-example="Кожух защитный (комплект) для триммера (бензокосы)">Кожух ↗</button></div>
-              <div class="form-divider"><span>Уточняющие признаки</span><span>точнее ввод → точнее подбор</span></div>
-              <div class="field-grid"><div><label for="material">Материал</label><input id="material" name="material" maxlength="1000" placeholder="Сталь, пластик…"></div><div><label for="construction">Конструкция</label><input id="construction" name="construction" maxlength="1000" placeholder="Деталь, узел, комплект…"></div></div>
-              <label for="purpose">Назначение и оборудование</label><input id="purpose" name="purpose" maxlength="1000" placeholder="Для какого инструмента, модель">
-              <label for="specifications">Технические характеристики</label><input id="specifications" name="specifications" maxlength="1000" placeholder="Размеры, мощность, принцип действия">
-              <div class="field-grid lower-fields"><div><label for="as_of">Дата операции</label><input type="date" id="as_of" name="as_of" required></div><div><label for="equipment">Тип инструмента</label><select id="equipment" name="equipment"><option value="all">Оба типа</option><option value="electric">Электроинструмент</option><option value="petrol">Бензоинструмент</option></select></div></div>
+              <input type="hidden" id="as_of" name="as_of"><input type="hidden" id="equipment" name="equipment" value="all">
               <button class="primary-button" id="search-button" type="submit"><span>Подобрать код</span><span>↗</span></button>
               <p class="private-note"><span>◉</span> Описание обрабатывается в вашем браузере</p>
             </form>
           </section>
           <section class="results-area" aria-labelledby="results-title">
             <div class="results-heading"><div><h2 id="results-title">Результаты подбора</h2><p id="results-subtitle">Варианты появятся после ввода описания</p></div><span class="step-marker">02</span></div>
-            <div id="results-content" aria-live="polite"><div class="empty-state"><div class="tree-art" aria-hidden="true"><span class="art-node root-node">84</span><div class="art-line"></div><div class="art-children"><span class="art-node">8409</span><span class="art-node muted-node">8483</span></div><div class="art-line short"></div><span class="art-node leaf-node">8409910008<span>10 цифр · полный код</span></span></div><h3>Каждая деталь имеет значение</h3><p>Укажите, что это за товар и для чего он нужен.<br>Система сравнит названия по всему дереву ТН ВЭД.</p><div class="empty-tags"><span>Название</span><span>Материал</span><span>Назначение</span></div></div></div>
+            <div id="results-content" aria-live="polite"><div class="empty-state"><div class="tree-art" aria-hidden="true"><span class="art-node root-node">84</span><div class="art-line"></div><div class="art-children"><span class="art-node">8409</span><span class="art-node muted-node">8483</span></div><div class="art-line short"></div><span class="art-node leaf-node">8409910008<span>10 цифр · полный код</span></span></div><h3>Введите только название</h3><p>Система сама определит деталь и вид техники,<br>сверит ваши каталоги и дерево ТН ВЭД.</p><div class="empty-tags"><span>Название</span><span>Аналоги</span><span>Проверка конфликтов</span></div></div></div>
             <div class="notice"><span class="notice-icon">i</span><p><strong>Основания для проверки, а не готовое заключение.</strong> Проценты показывают соответствие среди найденных вариантов. Правильность кода и актуальность редакции требуют проверки.</p></div>
           </section>
         </div>
@@ -48,5 +44,5 @@
 </div>
 <dialog id="candidate-dialog" aria-labelledby="detail-title"><div class="dialog-top"><span class="eyebrow">ОСНОВАНИЯ ПОДБОРА</span><button id="close-dialog" aria-label="Закрыть подробности">✕</button></div><div id="candidate-detail"></div></dialog>
 <div class="toast" id="toast" role="status" hidden></div>
-<script type="module" src="./app.js?v=3.0.2"></script>
+<script type="module" src="./app.js?v=4.0.0"></script>
 </body></html>
