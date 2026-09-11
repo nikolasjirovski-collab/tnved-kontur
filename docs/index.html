@@ -31,7 +31,7 @@
               <label for="purpose">Назначение и оборудование</label><input id="purpose" name="purpose" maxlength="1000" placeholder="Для какого инструмента, модель">
               <label for="specifications">Технические характеристики</label><input id="specifications" name="specifications" maxlength="1000" placeholder="Размеры, мощность, принцип действия">
               <div class="field-grid lower-fields"><div><label for="as_of">Дата операции</label><input type="date" id="as_of" name="as_of" required></div><div><label for="equipment">Тип инструмента</label><select id="equipment" name="equipment"><option value="all">Оба типа</option><option value="electric">Электроинструмент</option><option value="petrol">Бензоинструмент</option></select></div></div>
-              <button class="primary-button" id="search-button" type="submit" disabled><span>Подобрать код</span><span>↗</span></button>
+              <button class="primary-button" id="search-button" type="submit"><span>Подобрать код</span><span>↗</span></button>
               <p class="private-note"><span>◉</span> Описание обрабатывается в вашем браузере</p>
             </form>
           </section>
@@ -48,5 +48,5 @@
 </div>
 <dialog id="candidate-dialog" aria-labelledby="detail-title"><div class="dialog-top"><span class="eyebrow">ОСНОВАНИЯ ПОДБОРА</span><button id="close-dialog" aria-label="Закрыть подробности">✕</button></div><div id="candidate-detail"></div></dialog>
 <div class="toast" id="toast" role="status" hidden></div>
-<script type="module" src="./app.js?v=3.0.0"></script>
+<script type="module" src="./app.js?v=3.0.1"></script>
 </body></html>

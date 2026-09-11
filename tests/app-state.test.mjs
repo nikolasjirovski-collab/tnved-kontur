@@ -8,13 +8,13 @@ const source=readFileSync(new URL('../app.js',import.meta.url),'utf8').replace(/
 function setup(){
   const nodes=new Map(),workers=[];
   const node=id=>{if(!nodes.has(id))nodes.set(id,{value:'',innerHTML:'initial empty',textContent:'',disabled:false,hidden:false,events:{},classList:{toggle(){}},addEventListener(type,fn){this.events[type]=fn;},append(){},close(){},showModal(){},click(){},getBoundingClientRect(){return {};}});return nodes.get(id);};
-  class Worker{constructor(){workers.push(this);}postMessage(message){this.last=message;}}
+  class Worker{constructor(){workers.push(this);}postMessage(message){this.last=message;}terminate(){this.terminated=true;}}
   const storage=new Map();
   const context=vm.createContext({...render,console,URL,Worker,Date,JSON,Promise,setTimeout,clearTimeout,crypto:globalThis.crypto,Blob,
     document:{getElementById:node,querySelectorAll:()=>[],createElement:()=>node('created')},
     window:{addEventListener(){}},navigator:{clipboard:{writeText:async()=>{}}},
     localStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)},FormData:class{*[Symbol.iterator](){}}
-  });vm.runInContext(source,context);return {context,node,worker:workers[0],storage};
+  });vm.runInContext(source,context);return {context,node,worker:workers[0],workers,storage};
 }
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 test('changing inputs while worker runs discards the stale result and prevents save',async()=>{
@@ -39,4 +39,24 @@ test('download progress keeps the request pending; stale progress does not overw
   s.worker.onmessage({data:{id,progress:'Загрузка: 33%'}});await tick();assert.equal(s.node('search-button').disabled,true);assert.equal(s.node('results-subtitle').textContent,'Загрузка: 33%');
   s.node('product-form').events.input();s.worker.onmessage({data:{id,progress:'Загрузка: 66%'}});assert(s.node('results-subtitle').textContent.includes('Карточка изменена'));
   s.worker.onmessage({data:{id,result:{candidates:[]}}});await assert.rejects(promise,/изменилась/);
+});
+
+test('search clicked during initial loading waits and then submits without a second click',async()=>{
+  const s=setup();assert.equal(s.node('search-button').disabled,false);
+  const promise=vm.runInContext("runSearch({description:'Карбюратор'})",s.context);
+  assert.equal(s.worker.last.type,'init');assert.match(s.node('search-button').textContent,/справочник/);
+  s.worker.onmessage({data:{id:1,result:{minimum_date:'2026-04-27'}}});await tick();
+  assert.equal(s.worker.last.type,'classify');
+  s.worker.onmessage({data:{id:s.worker.last.id,error:'Остановлено тестом'}});
+  await assert.rejects(promise,/Остановлено/);assert.equal(s.node('search-button').disabled,false);
+});
+
+test('a crashed worker can be recreated by the next search',async()=>{
+  const s=setup();s.worker.onerror();await tick();
+  assert.equal(s.worker.terminated,true);assert.equal(s.node('search-button').disabled,false);
+  const promise=vm.runInContext("runSearch({description:'Шестерня'})",s.context);
+  const next=s.workers.at(-1);assert.notEqual(next,s.worker);assert.equal(next.last.type,'init');
+  next.onmessage({data:{id:next.last.id,result:{minimum_date:'2026-04-27'}}});await tick();
+  assert.equal(next.last.type,'classify');next.onmessage({data:{id:next.last.id,error:'Остановлено тестом'}});
+  await assert.rejects(promise,/Остановлено/);assert.equal(s.node('search-button').disabled,false);
 });
