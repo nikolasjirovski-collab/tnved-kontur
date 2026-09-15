@@ -34,6 +34,7 @@ test('shipped dense index matches catalog and contains only finite unit vectors'
   const bytes=readFileSync(new URL('../public/semantic.json.gz',import.meta.url)),s=JSON.parse(gunzipSync(bytes));
   const compressed=readFileSync(new URL('../public/vectors.f32.gz',import.meta.url));
   assert.equal(createHash('sha256').update(compressed).digest('hex'),s.vectors_sha256);
+  assert.equal(createHash('sha256').update(readFileSync(new URL('../public/catalog.json.gz',import.meta.url))).digest('hex'),s.catalog_sha256);
   const raw=gunzipSync(compressed),v=new Float32Array(raw.buffer,raw.byteOffset,raw.byteLength/4);
   assert.equal(v.length,s.documents.length*384);assert(s.documents.length>15000);assert(s.documents.every(d=>/^\d{10}$/.test(d.code)));
   for(let i=0;i<v.length;i+=384){let norm=0;for(let j=0;j<384;j++)norm+=v[i+j]*v[i+j];assert(Number.isFinite(norm)&&Math.abs(norm-1)<.001);}
@@ -48,6 +49,7 @@ test('real embedding regressions: named parts, paraphrases and unreadable input'
   const gear=run('Шестерня ведомая натяжителя цепи');assert(gear.candidates.length);assert(gear.candidates.every(c=>c.code.startsWith('848390')));
   const functional=run('Устройство смешивания бензина с воздухом для двигателя мотокосы');assert(functional.candidates.some(c=>c.code==='8409910008'));assert(functional.candidates.every(c=>c.code.startsWith('8409')));
   const guard=run('Защитный щиток режущей головки бензокосы');assert(guard.candidates.length);assert(!guard.candidates.some(c=>c.code.startsWith('65')||c.code==='8467990001'));
+  assert(!guard.candidates.some(c=>/глушител|ремней/iu.test(c.name)));
   const belt=run('Ремень приводной резиновый');assert(belt.candidates.length);assert(!belt.candidates.some(c=>c.code.startsWith('39')));
   for(const q of ['asdfghjkl','абракадабракса'])assert.equal(run(q).total,0);
 });

@@ -1,9 +1,10 @@
-import {toolContext,validOn} from './engine.js?v=3.0.0';
+import {toolContext,validOn} from './engine.js?v=4.1.0';
 export const SEMANTIC_VERSION='semantic-minilm-tools-v1';
 const round=(x,n=4)=>Number(x.toFixed(n));
 // Disambiguate a named part from a neighbouring part (carburetor versus its gasket).
 // This vocabulary never assigns a code; semantic retrieval still compares every branch.
 const partPatterns={carburetor:/карбюратор/iu,gear:/шестерн|зубчат.{0,8}колес/iu,guard:/кожух|щиток|огражден/iu,
+  switch:/выключател|переключател/iu,valve:/клапан|вентил[ьяеи]|кран(?:ы|ов|а|ы|у)?/iu,battery:/аккумулятор|батаре/iu,
   washer:/шайб/iu,bearing:/подшипник/iu,gasket:/прокладк/iu,seal:/сальник|уплотнени/iu,brush:/щ[её]тк/iu,
   rotor:/якорь|якоря|ротор/iu,stator:/статор/iu,motor:/двигател/iu,belt:/ремень|ремня|ремни/iu,pulley:/шкив/iu,
   starter:/стартер/iu,sprocket:/зв[её]здочк/iu,chain:/цепь|цепи/iu,nut:/гайк/iu,bolt:/болт/iu,screw:/винт|саморез/iu,
@@ -19,6 +20,12 @@ export function inferPart(vector,index,matrix){
   return sorted[0]?.[1]>=.75&&sorted[0][1]-(sorted[1]?.[1]||0)>=.06?sorted[0][0]:null;
 }
 export function normalizeVector(vector){let length=0;for(const x of vector){if(!Number.isFinite(x))throw Error('Некорректный результат обработки.');length+=x*x;}length=Math.sqrt(length);if(length<1e-8)throw Error('Недостаточно данных для сравнения.');return Float32Array.from(vector,x=>x/length);}
+function categoryText(engine,code){
+  const own=engine.path(code).filter(n=>n.code.length>=4).map(n=>n.description).join('. ');
+  // Resolve explicit references such as "машин товарной позиции 8501 или 8502".
+  const references=[...own.matchAll(/(?<!\d)(\d{4})(?!\d)/g)].map(m=>engine.data.nodes[m[1]]?.description||'');
+  return [own,...references].join('. ');
+}
 export function nearestCodes(vector,index,matrix,accept=()=>true){
   if(vector.length!==index.dimension||matrix.length!==index.documents.length*index.dimension)throw Error('Не удалось прочитать данные поиска.');
   const q=normalizeVector(vector),best=new Map();
@@ -34,21 +41,42 @@ export function semanticReport(engine,input,vector,index,matrix,limit=5){
   if(/^\d[\d\s]*$/.test(p.description))return engine.classify(p,limit);
   const namedPart=partKind(p.description),requestedPart=namedPart||inferPart(vector,index,matrix);
   const unreadable=/[bcdfghjklmnpqrstvwxz]{6,}/i.test(p.description)&&!/[а-яё]/i.test(p.description);
-  const matches=unreadable?[]:nearestCodes(vector,index,matrix,d=>!requestedPart||partKind(d.text)===requestedPart);
   const active=new Map(engine.records.filter(r=>validOn(r,p.as_of)).map(r=>[r.code,r]));
   const supplied=engine.customerSearch(p),exact=new Set(supplied.exact_codes);
   const query=Object.fromEntries(Object.keys(engine.data.weights).map(f=>[f,engine.terms(p[f])]));
   let requestedMaterial=new Set([...query.material].filter(t=>engine.materials.has(t)));
   if(!requestedMaterial.size)requestedMaterial=new Set([...query.description].filter(t=>engine.materials.has(t)));
+  const matches=unreadable?[]:nearestCodes(vector,index,matrix,d=>{
+    if(requestedPart&&partKind(d.text)!==requestedPart)return false;
+    // Explicit materials must be supported by a name or a material-specific chapter.
+    // Choose the best compatible document per code, not an incompatible maximum.
+    if(requestedMaterial.size){
+      const materialText=d.text+' '+(engine.data.nodes[d.code.slice(0,2)]?.description||'');
+      const terms=engine.terms(materialText);
+      if(![...requestedMaterial].some(t=>terms.has(t)))return false;
+    }
+    return true;
+  });
   const scored=[],unavailable=[];
   // A cosine gate is a retrieval abstention heuristic, never a calibrated accuracy claim.
   for(const m of matches){
     if(m.similarity<.70)continue;
     const r=active.get(m.code);if(!r){if(m.similarity>=.55)unavailable.push({code:m.code,name:m.text,reason:'Для выбранной даты требуется дополнительная проверка.'});continue;}
     if(p.source&&!supplied.hits.some(h=>h.code===m.code))continue;
-    const text=[r.description,engine.data.nodes[m.code]?.description||'',m.text].join(' ');
+    const text=[r.description,categoryText(engine,m.code),m.text].join(' ');
     const context=toolContext(p,text),contradictions=[];
     let score=m.similarity;
+    const handheld=/триммер|бензокос|мотокос|бензопил|электропил|шуруповерт|перфоратор/iu.test(p.description);
+    if(handheld&&/станк|экскаватор|бульдозер|подъемн.{0,12}кран/iu.test(categoryText(engine,m.code))){
+      score*=.35;contradictions.push('Категория относится к станкам или другой технике.');
+    }
+    // A guard for an exhaust or belt is not evidence for the cutting head's guard.
+    const assemblies={cutting:/режущ|косильн|катушк|головк/iu,exhaust:/глушител|выхлоп/iu,belt:/ремн|ремен/iu,gearbox:/редуктор/iu};
+    if(requestedPart==='guard'){
+      const wanted=Object.entries(assemblies).filter(([,re])=>re.test(p.description)).map(([kind])=>kind);
+      const found=Object.entries(assemblies).filter(([,re])=>re.test(m.text)).map(([kind])=>kind);
+      if(wanted.length&&found.length&&!wanted.some(kind=>found.includes(kind))){score*=.35;contradictions.push('Защитная деталь относится к другому узлу.');}
+    }
     if(exact.has(m.code))score+=.035;
     // Context adjusts true semantic candidates; it never generates a candidate itself.
     score*=context.factor;
@@ -66,6 +94,9 @@ export function semanticReport(engine,input,vector,index,matrix,limit=5){
       else if(!candidatePart&&m.kind==='example')score*=.6;
       const specific=[10,9,8,6].map(n=>engine.data.nodes[m.code.slice(0,n)]?.description||'').find(name=>partKind(name));
       if(specific&&partKind(specific)!==requestedPart){score*=.35;contradictions.push('Наименование категории описывает другой тип детали.');}
+      const categorySubject=engine.data.nodes[m.code.slice(0,6)]?.description?.replace(/^части\s+/iu,'')||'';
+      const categoryPart=partKind(categorySubject);
+      if(categoryPart&&categoryPart!==requestedPart&&!specific){score*=.35;contradictions.push('Категория относится к другому узлу.');}
       if(m.code.startsWith('8467')&&!/^84679[129]/.test(m.code)&&requestedPart!=='motor'){
         score*=.35;contradictions.push('Категория описывает инструмент в сборе; назначение детали требует проверки.');
       }

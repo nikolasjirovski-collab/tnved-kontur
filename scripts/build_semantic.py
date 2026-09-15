@@ -24,6 +24,10 @@ def texts(data):
     for e in data['entries']:
         if e['kind']!='xlsx':continue
         name=re.sub(r'\s+',' ',e['name']).strip()
+        # Article prefixes and English duplicate labels are not the product's function.
+        name=re.sub(r'^(?:[A-ZА-Яa-zа-я0-9_.\-/]*\d[A-ZА-Яa-zа-я0-9_.\-/]*\s+)(?:rus\s+)?', '', name)
+        name=re.sub(r'/[A-Z][A-Z /,()\-]*/', ' ', name).strip()
+        if not re.search(r'[а-яё]{3}',name,re.I):continue
         # Keep functional names; trim tail model/SKU strings, not Russian characteristics.
         name=re.split(r'\s+[A-ZА-Я]{2,}[\s\-_/\d(]',name,maxsplit=1)[0].strip()
         key=re.sub(r'[\d\W_]+',' ',name.casefold()).strip()

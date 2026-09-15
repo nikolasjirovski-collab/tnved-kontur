@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import {gunzipSync} from 'node:zlib';
 import {Engine} from '../engine.js';
 import {semanticReport} from '../semantic.js';
+import {searchProduct} from '../search.js';
 const savedProcess=globalThis.process;
 globalThis.self=globalThis;
 globalThis.process=undefined;
@@ -24,14 +25,19 @@ try{
   const semantic=await runtime.loadSemantic(manifest.index_sha256,manifest.semantic_sha256,console.log);
   const engine=new Engine(data);
   const fixtures=JSON.parse(await readFile(new URL('../../work/semantic_cache/evaluation.json',import.meta.url)));
+  const comparisons=[];
   for(const fixture of fixtures){
     const profile={description:fixture.query,as_of:'2026-09-10'};
     const v=await semantic.encode(profile);
     let cosine=0,norm=0;for(let i=0;i<v.length;i++){cosine+=v[i]*fixture.vector[i];norm+=v[i]*v[i];}
     assert.equal(v.length,384);assert(Math.abs(norm-1)<.001);assert(cosine>.999,'Python/JS embeddings diverged: '+cosine);
     const report=semanticReport(engine,profile,v,semantic.index,semantic.matrix);
+    const lexical=engine.classify(profile,5);
+    const live=await searchProduct(engine,profile,async()=>semantic);
+    comparisons.push({query:fixture.query,lexical:lexical.candidates.map(c=>c.code),semantic:report.candidates.map(c=>c.code),live:live.candidates.map(c=>c.code),method:live.search_method});
     console.log(JSON.stringify({query:fixture.query,parity:cosine,candidates:report.candidates.map(c=>({code:c.code,share:c.share,name:c.name})),total:report.total}));
   }
+  await writeFile(new URL('../../work/semantic_cache/search-comparison.json',import.meta.url),JSON.stringify(comparisons,null,2));
   const queries=['Кожух защитный (комплект) для триммера (бензокосы)','Карбюратор для триммера (бензокосы)','Шестерня ведомая натяжителя цепи','Ремень приводной резиновый','апельсин','asdfghjkl','абракадабракса'];
   const extra=[];
   for(const description of queries){const profile={description,as_of:'2026-09-10'},v=await semantic.encode(profile),r=semanticReport(engine,profile,v,semantic.index,semantic.matrix);extra.push({query:description,vector:Array.from(v),candidates:r.candidates});console.log(JSON.stringify({query:description,candidates:r.candidates.map(c=>({code:c.code,share:c.share,name:c.name}))}));}

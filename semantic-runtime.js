@@ -1,8 +1,8 @@
 import {pipeline,env} from './vendor/transformers.min.js?v=3.0.0';
-import {queryText} from './semantic.js?v=3.0.0';
+import {queryText} from './semantic.js?v=4.1.0';
 const sha=async data=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',data))].map(x=>x.toString(16).padStart(2,'0')).join('');
 export async function checkedFetch(url,expected){
-  const response=await fetch(url,{cache:'no-cache'});if(!response.ok)throw Error('Не удалось загрузить данные поиска. Проверьте соединение и повторите попытку.');
+  const response=await fetch(url,{cache:'no-cache',signal:AbortSignal.timeout(180000)});if(!response.ok)throw Error('Не удалось загрузить данные поиска. Проверьте соединение и повторите попытку.');
   const buffer=await response.arrayBuffer();if(expected&&await sha(buffer)!==expected)throw Error('Данные поиска повреждены. Обновите страницу.');return buffer;
 }
 export async function unzip(buffer){return new Response(new Blob([buffer]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();}

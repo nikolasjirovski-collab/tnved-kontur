@@ -9,7 +9,14 @@ const packed=readFileSync(new URL('../public/catalog.json.gz',import.meta.url));
 const data=JSON.parse(gunzipSync(packed));const manifest=JSON.parse(readFileSync(new URL('../public/manifest.json',import.meta.url)));
 data.meta.index_sha256=manifest.index_sha256;
 const e=new Engine(data);const query=(description,fields={},limit=20)=>e.classify({description,as_of:'2026-09-09',...fields},limit);
-test('shipped index integrity, totals and publication boundary',()=>{assert.equal(createHash('sha256').update(packed).digest('hex'),manifest.index_sha256);assert.equal(data.records.length,13295);assert.equal(data.entries.length,75426);const text=JSON.stringify(data);assert(!/C:\\\\Users|C:\/Users|source_path|saved_path|BEGIN PRIVATE KEY|gh[pousr]_[A-Za-z0-9]{20}/.test(text));});
+test('shipped index integrity, totals and publication boundary',()=>{assert.equal(createHash('sha256').update(packed).digest('hex'),manifest.index_sha256);assert.equal(data.records.length,13295);assert.equal(data.entries.length,manifest.pair_count);assert(data.entries.length>40000);const text=JSON.stringify(data);assert(!/C:\\\\Users|C:\/Users|source_path|saved_path|BEGIN PRIVATE KEY|gh[pousr]_[A-Za-z0-9]{20}/.test(text));});
+test('supplier imports contain names rather than standalone articles',()=>{
+  const inter=data.entries.filter(e=>e.refs.some(r=>r[0]==='Интерскол.xlsx'));
+  assert(inter.some(e=>e.name==='IGBT Транзистор'));assert(!inter.some(e=>e.name==='662.04.02.05.00'));
+  const smart=data.entries.filter(e=>e.refs.some(r=>r[0]==='Прайс лист по Запчастям 26.08.2026.xlsx'));
+  assert(smart.some(e=>e.name.includes('наклейка')));
+  assert(!data.entries.some(e=>e.refs.some(r=>r[0]==='Артикульная база 13.08.2026 — копия.xlsx')));
+});
 test('conflicting exact carburetor codes remain 50/50',()=>{const r=query('Карбюратор');assert.deepEqual(r.candidates.map(c=>[c.code,c.share]),[['8409910008',50],['8409990009',50]]);assert.equal(r.confirmed_code,null);assert.equal(r.exact_codes.length,2);});
 test('trimmer carburetor matches original desktop example',()=>{assert.equal(query('Карбюратор для триммера (бензокосы)').candidates[0].code,'8409910008');});
 test('name-only search recognizes the part and equipment inside supplier titles',()=>{const r=query('аккумулятор для шуруповерта 18в');assert.equal(r.candidates[0].code,'8507600000');assert.equal(r.candidates[0].share,100);assert(r.candidates[0].evidence.items>0);});

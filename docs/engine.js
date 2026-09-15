@@ -3,7 +3,7 @@ export function toolContext(profile,text){
   const tool=/бензокос|мотокос|триммер|бензопил|электропил|электроинструмент|бензоинструмент|перфоратор|шурупов[её]рт|дрел|лобзик|шлиф|болгар|газонокос|мотоблок|культиватор|цепн.{0,8}пил|ручн.{0,30}инструмент|инструмент.{0,40}встроенн.{0,25}двигател/i.test(text);
   const unrelated=/авиац|летательн|самол[её]т|вертол[её]т|автомобил|моторных транспортных|железнодорож|судовых|судов и|медицинск|головные уборы|головных уборов|защиты лица|защиты глаз/i.test(text);
   const petrol=/бензокос|мотокос|бензопил|бензоинструмент|бензинов/i.test(text);
-  const electric=/электроинструмент|электропил|шурупов[её]рт|перфоратор|(?<!не)электрическ.{0,15}двигател|аккумуляторн/i.test(text);
+  const electric=/электроинструмент|электропил|шурупов[её]рт|перфоратор|(?<!не)электрическ.{0,15}двигател|двигател.{0,30}электрическ|аккумуляторн/i.test(text);
   const query=[profile.description,profile.purpose].filter(Boolean).join(' ');
   const queryPetrol=/бензокос|мотокос|бензопил|бензоинструмент|бензинов/i.test(query),queryElectric=/электроинструмент|электропил|шурупов[её]рт|перфоратор|аккумуляторн/i.test(query);
   const requested=profile.equipment==='petrol'?'petrol':profile.equipment==='electric'?'electric':queryPetrol&&!queryElectric?'petrol':queryElectric&&!queryPetrol?'electric':null;
@@ -42,7 +42,9 @@ const FACETS={
     vacuum:/\bпылесос\w*/i,washer:/\bстиральн\w* машин\w*/i,fridge:/\b(?:холодильник|морозильник)\w*/i
   }
 };
-function facets(value){const text=normalize(value),out={part:new Set(),equipment:new Set()};for(const [group,rules] of Object.entries(FACETS))for(const [name,re] of Object.entries(rules))if(re.test(text))out[group].add(name);return out;}
+const wordBoundary='(?:(?<![\\p{L}\\p{N}])(?=[\\p{L}\\p{N}])|(?<=[\\p{L}\\p{N}])(?![\\p{L}\\p{N}]))';
+const unicodeFacets=Object.fromEntries(Object.entries(FACETS).map(([group,rules])=>[group,Object.entries(rules).map(([name,re])=>[name,new RegExp(re.source.replaceAll('\\b',wordBoundary).replaceAll('\\w','[\\p{L}\\p{N}]'),'iu')])]));
+export function facets(value){const text=normalize(value),out={part:new Set(),equipment:new Set()};for(const [group,rules] of Object.entries(unicodeFacets))for(const [name,re] of rules)if(re.test(text))out[group].add(name);return out;}
 const overlaps=(a,b)=>!a.size||!b.size||intersect(a,b).size>0;
 const evidenceOf=h=>{const sources=Object.keys(h?.counts||{}).length,rows=Object.values(h?.counts||{}).reduce((n,v)=>n+v,0);return {sources,rows};};
 

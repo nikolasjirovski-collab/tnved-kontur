@@ -3,9 +3,9 @@
   "method": "web-hierarchical-support-v1",
   "minimum_date": "2026-04-27",
   "snapshot_date": "2026-04-27",
-  "built_at": "2026-09-11T09:15:45.828167+00:00",
+  "built_at": "2026-09-15T12:07:06.727734+00:00",
   "code_count": 13295,
-  "pair_count": 75426,
+  "pair_count": 48637,
   "source_hashes": {
     "data/tnved.csv": "835f448c86ab127fcb9de5cdfcd34dafc161bfce8fed2402751fe94e1ba021f6",
     "data/parts_guidance.json": "645461a303ea2703bac6488de509c311e9ef60618c3fd8edeeefb03428d2f714",
@@ -25,7 +25,7 @@
     "work/regulatory_sources/sanitary_list/category_index.json": "bae654b175bcf7d25d56e905747a0eddc7437d0338dfd3bf1c90daebdd8b2295",
     "work/regulatory_sources/technical_regulations/catalog.json": "c6a88985f6daa1c92f4be374609fa37249461f07fdfc26e41c565686593ff1ff"
   },
-  "customer_sha256": "f0660a0ee58c328b75c2fdfa3de0e0f1545cbd3922c0e714ac659b0f3edcafae",
+  "customer_sha256": "ee5681facad064d8dfee7e16724f2cadf2d47720de497eb193e78dde7d618eef",
   "sources": [
     "CARVER.xlsx",
     "DONGCHENG.xlsx",
@@ -42,7 +42,7 @@
     "ремни ТН_ВЭД.xlsx"
   ],
   "notice": "CSV: classifikators.ru, полнота и дата редакции не подтверждены. ФНС: срез 27.04.2026.",
-  "index_sha256": "df42b4553049e8b011c6f11205f010eae012dc18e7f5d5bb7dc49e8c1a9bcb62",
-  "bytes": 3953743,
-  "semantic_sha256": "653a77ec7c6b0d5fb09a5997bb56e570c508618626751f30617171984a6313db"
+  "index_sha256": "7502a14725300324b7d810131e72df9dad1bc9a960e3a7a85a5b201dd7060810",
+  "bytes": 3791427,
+  "semantic_sha256": "d5d8b901c9dbf41d8e3fdcd47b8d1adae8ced1e8fa7bcbacf74392d0261278f9"
 }

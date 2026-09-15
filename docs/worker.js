@@ -1,9 +1,17 @@
-import {Engine} from './engine.js?v=4.0.0';
-let engine,queue=Promise.resolve();
+import {Engine} from './engine.js?v=4.1.0';
+import {searchProduct} from './search.js?v=4.1.0';
+let engine,queue=Promise.resolve(),semanticPromise;
+function getSemantic(progress){
+  if(!semanticPromise)semanticPromise=(async()=>{
+    const {loadSemantic}=await import('./semantic-runtime.js?v=4.1.0');
+    return loadSemantic(engine.meta.index_sha256,engine.meta.semantic_sha256,progress);
+  })().catch(error=>{semanticPromise=null;throw error;});
+  return semanticPromise;
+}
 async function handle(message){
   try{
     if(message.type==='init'){
-      const [mr,dr,er]=await Promise.all([fetch('./public/manifest.json',{cache:'no-cache'}),fetch('./public/catalog.json.gz'),fetch('./public/elitech.json')]);
+      const [mr,dr,er]=await Promise.all([fetch('./public/manifest.json',{cache:'no-cache'}),fetch('./public/catalog.json.gz',{cache:'no-cache'}),fetch('./public/elitech.json',{cache:'no-cache'})]);
       if(!mr.ok||!dr.ok||!er.ok)throw Error('Не удалось загрузить справочник. Проверьте соединение и повторите попытку.');
       const manifest=await mr.json(),buffer=await dr.arrayBuffer();
       const hash=[...new Uint8Array(await crypto.subtle.digest('SHA-256',buffer))].map(x=>x.toString(16).padStart(2,'0')).join('');
@@ -16,7 +24,12 @@ async function handle(message){
       if(!engine)throw Error('Дождитесь загрузки справочника.');
       const profile=engine.validate(message.profile);
       self.postMessage({id:message.id,progress:'Ищем по названию и синонимам…'});
-      const result=engine.classify(profile,5);
+      const progress=text=>self.postMessage({id:message.id,progress:text});
+      // Keep UI responsive while a first-time model download is in flight.
+      const heartbeat=setInterval(()=>progress('Готовим смысловой поиск. Первая загрузка может занять несколько минут…'),15000);
+      let result;
+      try{result=await searchProduct(engine,profile,getSemantic,progress);}
+      finally{clearInterval(heartbeat);}
       self.postMessage({id:message.id,result});
     }else throw Error('Неизвестный запрос.');
   }catch(error){self.postMessage({id:message.id,error:error.message||'Не удалось выполнить подбор.'});}
