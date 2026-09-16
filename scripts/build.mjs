@@ -9,7 +9,7 @@ const hash=b=>createHash('sha256').update(b).digest('hex');
 const model=JSON.parse(await readFile(join(root,'public/model/manifest.json'),'utf8'));
 const semanticPacked=await readFile(join(root,'public/semantic.json.gz'));
 const semantic=JSON.parse(gunzipSync(semanticPacked));
-const files=['index.html','style.css','favicon.svg','app.js','render.js','engine.js','worker.js','search.js','semantic.js','semantic-runtime.js',
+const files=['index.html','style.css','favicon.svg','bootstrap.js','app.js','render.js','engine.js','worker.js','search.js','semantic.js','semantic-runtime.js',
  'public/manifest.json','public/catalog.json.gz','public/elitech.json','public/semantic.json.gz','public/vectors.f32.gz','public/model/manifest.json',
  ...Object.keys(model.files).filter(n=>n.endsWith('.json')).map(n=>'public/model/'+n),...model.parts.map(p=>'public/model/'+p.file),
  'vendor/transformers.min.js','vendor/ort-wasm-simd-threaded.jsep.mjs','vendor/ort-wasm-simd-threaded.jsep.wasm','vendor/LICENSE-APACHE-2.0.txt','vendor/LICENSE-ONNX.txt','vendor/LICENSE-JINJA.txt','vendor/NOTICE.txt'];
@@ -28,5 +28,5 @@ if(/(?:src|href)=["']\//.test(html))throw Error('Root-relative paths would break
 const out=join(root,'docs');await mkdir(join(out,'public'),{recursive:true});
 for(const file of files){await mkdir(dirname(join(out,file)),{recursive:true});await copyFile(join(root,file),join(out,file));}
 await writeFile(join(out,'.nojekyll'),'');
-await writeFile(join(out,'build.json'),JSON.stringify({version:'4.2.0',index_sha256:manifest.index_sha256,semantic_sha256:manifest.semantic_sha256,files},null,2));
+await writeFile(join(out,'build.json'),JSON.stringify({version:'4.2.1',index_sha256:manifest.index_sha256,semantic_sha256:manifest.semantic_sha256,files},null,2));
 console.log(`Build complete: ${files.length} assets, ${semantic.documents.length} semantic vectors. Output: docs/`);
