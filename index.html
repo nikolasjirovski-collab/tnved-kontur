@@ -28,6 +28,8 @@
               <div class="examples"><span>Попробовать</span><button type="button" data-example="Карбюратор">Карбюратор ↗</button><button type="button" data-example="Шестерня ведомая натяжителя цепи">Шестерня ↗</button><button type="button" data-example="Кожух защитный (комплект) для триммера (бензокосы)">Кожух ↗</button></div>
               <input type="hidden" id="as_of" name="as_of"><input type="hidden" id="equipment" name="equipment" value="all">
               <button class="primary-button" id="search-button" type="submit"><span>Подобрать код</span><span>↗</span></button>
+              <p id="search-status" class="private-note" role="status" aria-live="polite"></p>
+              <p class="private-note">Поиск запускается автоматически после ввода. Enter — искать сразу.</p>
               <p class="private-note"><span>◉</span> Описание обрабатывается в вашем браузере</p>
               <p class="private-note">Первый смысловой поиск загружает модель и может занять несколько минут.</p>
             </form>
@@ -45,5 +47,5 @@
 </div>
 <dialog id="candidate-dialog" aria-labelledby="detail-title"><div class="dialog-top"><span class="eyebrow">ОСНОВАНИЯ ПОДБОРА</span><button id="close-dialog" aria-label="Закрыть подробности">✕</button></div><div id="candidate-detail"></div></dialog>
 <div class="toast" id="toast" role="status" hidden></div>
-<script type="module" src="./app.js?v=4.1.0"></script>
+<script type="module" src="./app.js?v=4.2.0"></script>
 </body></html>

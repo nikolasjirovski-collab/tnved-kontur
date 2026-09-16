@@ -13,10 +13,38 @@ function setup(){
   const context=vm.createContext({...render,console,URL,Worker,Date,JSON,Promise,setTimeout,clearTimeout,crypto:globalThis.crypto,Blob,
     document:{getElementById:node,querySelectorAll:()=>[],createElement:()=>node('created')},
     window:{addEventListener(){}},navigator:{clipboard:{writeText:async()=>{}}},
-    localStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)},FormData:class{*[Symbol.iterator](){}}
+    localStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)},FormData:class{*[Symbol.iterator](){yield ['description',node('description').value];yield ['as_of',node('as_of').value];}}
   });vm.runInContext(source,context);return {context,node,worker:workers[0],workers,storage};
 }
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
+
+test('typing searches automatically and Enter searches immediately without duplicate debounce',async()=>{
+  const s=setup();s.worker.onmessage({data:{id:1,result:{minimum_date:'2026-04-27'}}});await tick();
+  s.node('description').value='Карб';s.node('product-form').events.input();
+  s.node('description').value='Карбюратор';s.node('product-form').events.input();
+  assert.equal(s.worker.last.type,'init');
+  await new Promise(resolve=>setTimeout(resolve,850));
+  assert.equal(s.worker.last.profile.description,'Карбюратор');const first=s.worker.last.id;
+  s.worker.onmessage({data:{id:first,result:{search_method:'exact',candidates:[]}}});await tick();
+  s.node('description').value='Шестерня';s.node('product-form').events.input();
+  let prevented=false;s.node('description').events.keydown({key:'Enter',preventDefault(){prevented=true;}});
+  assert(prevented);assert.equal(s.worker.last.profile.description,'Шестерня');const second=s.worker.last.id;
+  s.worker.onmessage({data:{id:second,result:{search_method:'exact',candidates:[]}}});await tick();
+  await new Promise(resolve=>setTimeout(resolve,850));assert.equal(s.worker.last.id,second);
+});
+
+test('partial results appear while pending and cannot replace a newer search',async()=>{
+  const s=setup();s.worker.onmessage({data:{id:1,result:{minimum_date:'2026-04-27'}}});await tick();
+  const old=vm.runInContext("runSearch({description:'Защитный щиток'})",s.context);const oldId=s.worker.last.id;
+  const partial={search_method:'lexical-pending',candidates:[{code:'8409910008',share:null}]};
+  s.worker.onmessage({data:{id:oldId,partial}});
+  assert.match(s.node('results-content').innerHTML,/8409910008/);assert.equal(s.node('save-report').disabled,true);
+  const next=vm.runInContext("runSearch({description:'Шестерня'})",s.context);const nextId=s.worker.last.id;
+  s.worker.onmessage({data:{id:nextId,result:{search_method:'exact',candidates:[{code:'8483908909'}]}}});await next;
+  s.worker.onmessage({data:{id:oldId,partial}});assert.match(s.node('results-content').innerHTML,/8483908909/);
+  s.worker.onmessage({data:{id:oldId,result:partial}});await assert.rejects(old,/изменилась/);
+  assert.equal(s.node('save-report').disabled,false);assert.equal(s.node('search-button').disabled,false);
+});
 test('changing inputs while worker runs discards the stale result and prevents save',async()=>{
   const s=setup();s.worker.onmessage({data:{id:1,result:{code_count:1,pair_count:1,minimum_date:'2026-04-27',snapshot_date:'2026-04-27',sources:[],method:'test',built_at:'2026-09-09'}}});await tick();
   const promise=vm.runInContext("runSearch({description:'Карбюратор',as_of:'2026-09-09'})",s.context);
@@ -37,7 +65,7 @@ test('download progress keeps the request pending; stale progress does not overw
   const promise=vm.runInContext("runSearch({description:'Карбюратор',as_of:'2026-09-09'})",s.context);const id=s.worker.last.id;
   assert.equal(s.worker.last.limit,5);
   s.worker.onmessage({data:{id,progress:'Загрузка: 33%'}});await tick();assert.equal(s.node('search-button').disabled,true);assert.equal(s.node('results-subtitle').textContent,'Загрузка: 33%');
-  s.node('product-form').events.input();s.worker.onmessage({data:{id,progress:'Загрузка: 66%'}});assert(s.node('results-subtitle').textContent.includes('Карточка изменена'));
+  s.node('product-form').events.input();s.worker.onmessage({data:{id,progress:'Загрузка: 66%'}});assert(s.node('results-subtitle').textContent.includes('Название изменено'));
   s.worker.onmessage({data:{id,result:{candidates:[]}}});await assert.rejects(promise,/изменилась/);
 });
 

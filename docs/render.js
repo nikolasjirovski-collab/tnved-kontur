@@ -7,6 +7,7 @@ export const fieldLabels={description:'Описание',material:'Матери�
 export const equipmentText=v=>({electric:'Электроинструмент',petrol:'Бензоинструмент',all:'Электро- и бензоинструмент'}[v]||'Электро- и бензоинструмент');
 const warnings=['Проценты показывают соответствие среди найденных вариантов, а не вероятность правильного кода.','Окончательный код и его действительность на дату операции требуют проверки.'];
 const searchMethods={exact:'Точное совпадение названия. Разные коды для одного названия сохраняются.',semantic:'Смысловой поиск: найдены похожие описания товаров.','semantic-no-match':'Нейросеть не нашла достаточно близких описаний с подходящими признаками.','lexical-model-unavailable':'Смысловой поиск недоступен. Показаны совпадения по словам; повторите подбор, чтобы загрузить нейросеть.'};
+searchMethods['lexical-pending']='Предварительный поиск по словам. Нейросеть ещё загружается или уточняет варианты.';
 // An explicit allowlist keeps file names, provenance and diagnostic fields out of every user report, including older saved results.
 export function publicReport(r){
   return {created_at:r.created_at,profile:Object.fromEntries(['description','material','purpose','construction','specifications','as_of','equipment'].map(k=>[k,r.profile?.[k]||(k==='equipment'?'all':'')])),
@@ -27,8 +28,9 @@ export function resultHTML(raw){
   if(r.exact_codes.length>1)html+='<div class="alert-box">Для этого названия возможны разные коды. Уточните тип инструмента и характеристики детали.</div>';
   if(r.candidates.length){
     html+='<div class="candidate-list">'+r.candidates.map((c,i)=>`<button class="candidate" data-candidate="${i}" aria-label="Код ${esc(c.code)}, открыть подробности"><span class="candidate-top"><span class="code">${codeText(c.code)}</span>${c.share===null?'<span>↗</span>':`<span class="percent">${pct(c.share)}<small>%</small></span>`}</span><span class="candidate-name">${esc(c.name)}</span><span class="candidate-meta"><span class="tag">${c.contradictions.length?'Требует уточнения':'Вариант для проверки'}</span><span>Подробнее ↗</span></span>${c.share===null?'':`<span class="candidate-bar" style="width:${Math.min(100,Math.max(0,Number(c.share)||0))}%"></span>`}</button>`).join('')+'</div>';
-    if(r.mode!=='code')html+=`<p class="result-note">Доли среди найденных вариантов, не вероятность правильной классификации.${r.other_share?` За пределами списка: ${pct(r.other_share)}%.`:''}</p>`;
-  }else html+='<div class="empty-state"><h3>Надёжные варианты не найдены</h3><p>Попробуйте другое название из товарной карточки.<br>Можно также ввести полный код ТН ВЭД.</p></div>';
+    if(r.mode!=='code'&&r.search_method!=='lexical-pending')html+=`<p class="result-note">Доли среди найденных вариантов, не вероятность правильной классификации.${r.other_share?` За пределами списка: ${pct(r.other_share)}%.`:''}</p>`;
+  }else if(r.search_method==='lexical-pending')html+='<div class="loading-state"><span class="spinner"></span>Нейросеть ищет похожие описания…</div>';
+  else html+='<div class="empty-state"><h3>Надёжные варианты не найдены</h3><p>Попробуйте другое название из товарной карточки.<br>Можно также ввести полный код ТН ВЭД.</p></div>';
   if(r.unavailable.length)html+=`<details class="alert-box"><summary>Другие коды, требующие проверки: ${num(r.unavailable.length)}</summary>${r.unavailable.slice(0,50).map(c=>`<p><b>${codeText(c.code)}</b> — ${esc(c.name)}<br>${esc(c.reason)}</p>`).join('')}</details>`;
   if(r.questions.length)html+=`<details class="result-note"><summary>Что уточнить для выбора кода</summary><ul>${[...new Set(r.questions)].map(q=>`<li>${esc(q)}</li>`).join('')}</ul></details>`;
   return html+'<div class="result-actions"><button class="secondary-button" id="save-report">Сохранить проверку</button><button class="secondary-button" id="export-report">Экспорт JSON ↓</button><button class="secondary-button" id="export-text">Экспорт TXT ↓</button></div>';

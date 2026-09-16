@@ -38,3 +38,18 @@ test('model failure is visible and fallback keeps code lookup usable',async()=>{
   assert.equal(r.search_method,'lexical-model-unavailable');
   assert.match(resultHTML(r),/Смысловой поиск недоступен/);
 });
+
+test('slow model shows partial results immediately then times out with a usable fallback',async()=>{
+  let partial,encodes=0,release;
+  const runtime=new Promise(resolve=>{release=resolve;});
+  const r=await searchProduct(engine,profile('Защитный щиток режущей головки бензокосы'),()=>runtime,()=>{},r=>{partial=r;},()=>true,25);
+  assert.equal(partial.search_method,'lexical-pending');assert(partial.candidates.length>0);
+  assert(partial.candidates.every(c=>c.share===null));assert.equal(r.search_method,'lexical-model-unavailable');
+  release({encode:()=>{encodes++;}});await new Promise(resolve=>setImmediate(resolve));assert.equal(encodes,0);
+});
+
+test('a superseded query skips inference when shared model loading finishes',async()=>{
+  let encodes=0;
+  await searchProduct(engine,profile('Защитный щиток режущей головки бензокосы'),async()=>({encode:()=>{encodes++;}}),()=>{},()=>{},()=>false);
+  assert.equal(encodes,0);
+});

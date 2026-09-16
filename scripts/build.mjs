@@ -28,5 +28,5 @@ if(/(?:src|href)=["']\//.test(html))throw Error('Root-relative paths would break
 const out=join(root,'docs');await mkdir(join(out,'public'),{recursive:true});
 for(const file of files){await mkdir(dirname(join(out,file)),{recursive:true});await copyFile(join(root,file),join(out,file));}
 await writeFile(join(out,'.nojekyll'),'');
-await writeFile(join(out,'build.json'),JSON.stringify({version:'4.1.0',index_sha256:manifest.index_sha256,semantic_sha256:manifest.semantic_sha256,files},null,2));
+await writeFile(join(out,'build.json'),JSON.stringify({version:'4.2.0',index_sha256:manifest.index_sha256,semantic_sha256:manifest.semantic_sha256,files},null,2));
 console.log(`Build complete: ${files.length} assets, ${semantic.documents.length} semantic vectors. Output: docs/`);

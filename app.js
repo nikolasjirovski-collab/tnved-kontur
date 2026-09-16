@@ -1,40 +1,45 @@
-import {esc,pct,num,dateText,resultHTML,detailHTML,publicReport,reportText} from './render.js?v=4.1.0';
+import {esc,pct,num,dateText,resultHTML,detailHTML,publicReport,reportText} from './render.js?v=4.2.0';
 const $=id=>document.getElementById(id);
 const today=()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');};
 const emptyHTML=$('results-content').innerHTML;
-let report=null,meta=null,revision=0,requestId=0,latestSearch=0,savedId=null,toastTimer;
+let report=null,meta=null,revision=0,requestId=0,latestSearch=0,savedId=null,toastTimer,autoTimer;
 const pending=new Map();let worker=null,initializing=null;
 function resetWorker(message){worker?.terminate();worker=null;meta=null;for(const p of pending.values()){clearTimeout(p.timer);p.reject(Error(message));}pending.clear();}
-function request(type,payload={},progress){return new Promise((resolve,reject)=>{
+function request(type,payload={},progress,partial){return new Promise((resolve,reject)=>{
   try{
-    if(!worker){worker=new Worker(new URL('./worker.js?v=4.1.0',import.meta.url),{type:'module'});
-      worker.onmessage=({data})=>{const h=pending.get(data.id);if(!h)return;clearTimeout(h.timer);if(data.progress){h.arm();h.progress?.(data.progress);return;}pending.delete(data.id);data.error?h.reject(Error(data.error)):h.resolve(data.result);};
+    if(!worker){worker=new Worker(new URL('./worker.js?v=4.2.0',import.meta.url),{type:'module'});
+      worker.onmessage=({data})=>{const h=pending.get(data.id);if(!h)return;clearTimeout(h.timer);if(data.progress||data.partial){h.arm();if(data.progress)h.progress?.(data.progress);if(data.partial)h.partial?.(data.partial);return;}pending.delete(data.id);data.error?h.reject(Error(data.error)):h.resolve(data.result);};
       worker.onerror=()=>resetWorker('Обработка прервалась. Нажмите «Подобрать код», чтобы повторить попытку.');
       worker.onmessageerror=()=>resetWorker('Не удалось получить результат. Повторите подбор.');
     }
-    const id=++requestId,h={resolve,reject,progress,arm(){this.timer=setTimeout(()=>resetWorker('Загрузка заняла слишком много времени. Проверьте соединение и повторите подбор.'),type==='init'?60000:300000);}};
+    const id=++requestId,h={resolve,reject,progress,partial,arm(){this.timer=setTimeout(()=>resetWorker('Загрузка заняла слишком много времени. Проверьте соединение и повторите подбор.'),type==='init'?60000:300000);}};
     pending.set(id,h);h.arm();worker.postMessage({id,type,...payload});
   }catch(error){resetWorker('Не удалось запустить обработку. Обновите браузер и повторите попытку.');reject(error);}
 });}
-function searchState(busy,text='Подобрать код'){$('search-button').disabled=busy;$('search-button').textContent=text;}
+function searchState(busy,text='Подобрать код'){$('search-button').disabled=busy;$('search-button').textContent=text;$('search-status').textContent=busy?text:'';}
 function toast(message){clearTimeout(toastTimer);$('toast').textContent=message;$('toast').hidden=false;toastTimer=setTimeout(()=>$('toast').hidden=true,3500);}
 function setView(name){for(const v of ['search','history'])$(v+'-view').hidden=v!==name;document.querySelectorAll('.rail-button').forEach(b=>b.classList.toggle('active',b.dataset.view===name));if(name==='history')renderHistory();}
 document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));
 $('as_of').value=today();
-function invalidate(){revision++;report=null;savedId=null;$('candidate-dialog').close();$('results-content').innerHTML=emptyHTML;$('results-subtitle').textContent='Карточка изменена — выполните новый подбор';}
-$('product-form').addEventListener('input',invalidate);$('product-form').addEventListener('change',invalidate);
+function invalidate(){clearTimeout(autoTimer);revision++;report=null;savedId=null;$('candidate-dialog').close();$('results-content').innerHTML=emptyHTML;$('results-subtitle').textContent='Название изменено';searchState(false);}
+function scheduleSearch(event){invalidate();if(event?.isComposing)return;if($('description').value.trim().length<3)return;$('search-status').textContent='Начнём поиск после паузы во вводе…';autoTimer=setTimeout(()=>runSearch().catch(()=>{}),800);}
+$('product-form').addEventListener('input',scheduleSearch);
+$('description').addEventListener('compositionend',scheduleSearch);
+$('description').addEventListener('keydown',event=>{if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing){event.preventDefault();clearTimeout(autoTimer);runSearch().catch(()=>{});}});
 document.querySelectorAll('[data-example]').forEach(button=>button.addEventListener('click',()=>{$('product-form').reset();$('description').value=button.dataset.example;$('as_of').value=today();invalidate();runSearch().catch(()=>{});}));
 const getProfile=()=>Object.fromEntries(new FormData($('product-form')));
 async function runSearch(profile=getProfile()){
+  clearTimeout(autoTimer);
   const current=++revision,searchToken=++latestSearch;report=null;savedId=null;searchState(true,meta?'Подбираем код…':'Загружаем справочник…');
   $('results-content').innerHTML='<div class="loading-state"><span class="spinner"></span>Ищем по названию и синонимам…</div>';$('results-subtitle').textContent='Поиск по названию и синонимам';
-  try{if(!meta)await initialize();if(current!==revision)throw Error('Карточка изменилась во время подбора.');searchState(true,'Подбираем код…');const result=await request('classify',{profile,limit:5},text=>{if(current===revision){$('results-subtitle').textContent=text;searchState(true,text);}});if(current!==revision)throw Error('Карточка изменилась во время подбора.');report=publicReport(result);renderResults();return report;}
+  try{if(!meta)await initialize();if(current!==revision)throw Error('Карточка изменилась во время подбора.');searchState(true,'Подбираем код…');const result=await request('classify',{profile,limit:5},text=>{if(current===revision){$('results-subtitle').textContent=text;searchState(true,'Подбираем код…');$('search-status').textContent=text;}},partial=>{if(current===revision){report=publicReport(partial);renderResults();$('search-status').textContent='Первые варианты готовы. Нейросеть уточняет результат…';}});if(current!==revision)throw Error('Карточка изменилась во время подбора.');report=publicReport(result);renderResults();return report;}
   catch(error){if(current===revision){$('results-content').innerHTML=`<div class="error-state">${esc(error.message)}</div>`;$('results-subtitle').textContent='Подбор не выполнен';}throw error;}
-  finally{if(searchToken===latestSearch)searchState(false);}
+  finally{if(searchToken===latestSearch&&current===revision)searchState(false);}
 }
 $('product-form').addEventListener('submit',e=>{e.preventDefault();runSearch().catch(()=>{});});
 function renderResults(){if(!report)return;$('results-subtitle').textContent=report.total?`${num(report.total)} вариантов · показано ${report.candidates.length}`:'Недостаточно совпадений для подбора';$('results-content').innerHTML=resultHTML(report);
   document.querySelectorAll('[data-candidate]').forEach(b=>b.addEventListener('click',()=>openDetail(Number(b.dataset.candidate))));$('save-report').addEventListener('click',saveReport);$('export-report').addEventListener('click',()=>downloadReport('json'));$('export-text').addEventListener('click',()=>downloadReport('txt'));
+  for(const id of ['save-report','export-report','export-text'])$(id).disabled=report.search_method==='lexical-pending';
 }
 function openDetail(index){const c=report?.candidates[index];if(!c)return;$('candidate-detail').innerHTML=detailHTML(c);$('copy-code').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(c.code);toast('Код скопирован');}catch{toast('Выделите код и скопируйте вручную.');}});$('candidate-dialog').showModal();}
 $('close-dialog').addEventListener('click',()=>$('candidate-dialog').close());

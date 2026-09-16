@@ -1,10 +1,13 @@
-import {Engine} from './engine.js?v=4.1.0';
-import {searchProduct} from './search.js?v=4.1.0';
-let engine,queue=Promise.resolve(),semanticPromise;
+import {Engine} from './engine.js?v=4.2.0';
+import {searchProduct} from './search.js?v=4.2.0';
+let engine,semanticPromise,latestSearch=0,encoding=Promise.resolve();
 function getSemantic(progress){
   if(!semanticPromise)semanticPromise=(async()=>{
     const {loadSemantic}=await import('./semantic-runtime.js?v=4.1.0');
-    return loadSemantic(engine.meta.index_sha256,engine.meta.semantic_sha256,progress);
+    const runtime=await loadSemantic(engine.meta.index_sha256,engine.meta.semantic_sha256,progress);
+    const encode=runtime.encode;
+    runtime.encode=profile=>{const task=encoding.then(()=>encode(profile));encoding=task.catch(()=>{});return task;};
+    return runtime;
   })().catch(error=>{semanticPromise=null;throw error;});
   return semanticPromise;
 }
@@ -21,6 +24,7 @@ async function handle(message){
       const data=JSON.parse(await new Response(stream).text());data.elitech=await er.json();data.meta.index_sha256=hash;data.meta.semantic_sha256=manifest.semantic_sha256;engine=new Engine(data);
       self.postMessage({id:message.id,result:engine.meta});
     }else if(message.type==='classify'){
+      latestSearch=message.id;
       if(!engine)throw Error('Дождитесь загрузки справочника.');
       const profile=engine.validate(message.profile);
       self.postMessage({id:message.id,progress:'Ищем по названию и синонимам…'});
@@ -28,11 +32,12 @@ async function handle(message){
       // Keep UI responsive while a first-time model download is in flight.
       const heartbeat=setInterval(()=>progress('Готовим смысловой поиск. Первая загрузка может занять несколько минут…'),15000);
       let result;
-      try{result=await searchProduct(engine,profile,getSemantic,progress);}
+      try{result=await searchProduct(engine,profile,getSemantic,progress,
+        partial=>self.postMessage({id:message.id,partial}),()=>latestSearch===message.id);}
       finally{clearInterval(heartbeat);}
       self.postMessage({id:message.id,result});
     }else throw Error('Неизвестный запрос.');
   }catch(error){self.postMessage({id:message.id,error:error.message||'Не удалось выполнить подбор.'});}
 }
-// Keep one encoder/session active; concurrent searches cannot mix input or progress.
-self.onmessage=({data})=>{queue=queue.then(()=>handle(data));};
+// Catalogue queries remain available during model loading; only inference is serialized.
+self.onmessage=({data})=>{handle(data);};
